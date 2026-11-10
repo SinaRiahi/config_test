@@ -392,22 +392,24 @@ impl eframe::App for VpnCheckerApp {
         // 2. Poll Subscription Update Channel
         if let Some(rx) = &mut self.rx_fetched {
             if let Ok(update_res) = rx.try_recv() {
+                let ok_subs = update_res.success_subs;
+                let err_subs = update_res.failed_subs;
                 self.discovery_sources = update_res.updated_sources;
                 self.is_fetching_online = false;
                 self.rx_fetched = None;
 
                 if self.replace_on_sub_update {
-                    self.configs = update_res.configs;
+                    self.configs = update_res.all_configs;
                     self.results.clear();
                     self.selected_index = None;
                     self.status_msg = format!(
-                        "Subscriptions Updated · {} unique nodes loaded into queue",
+                        "Subscriptions Updated ({ok_subs} OK, {err_subs} failed) · {} unique nodes loaded into queue",
                         self.configs.len()
                     );
                 } else {
-                    let added = self.merge_configs(update_res.configs);
+                    let added = self.merge_configs(update_res.all_configs);
                     self.status_msg = format!(
-                        "Subscriptions Updated · +{added} new nodes ({} total in queue)",
+                        "Subscriptions Updated ({ok_subs} OK, {err_subs} failed) · +{added} new nodes ({} total in queue)",
                         self.configs.len()
                     );
                 }
