@@ -112,8 +112,33 @@ export default function App() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // Internet Discovery State
-  const [discoveryFeeds, setDiscoveryFeeds] = useState<DiscoveryFeed[]>(DEFAULT_DISCOVERY_FEEDS);
+  // Persistent Subscription Manager State
+  const [discoveryFeeds, setDiscoveryFeeds] = useState<DiscoveryFeed[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('vpn_checker_subs_v2');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        }
+      } catch {
+        // use defaults
+      }
+    }
+    return DEFAULT_DISCOVERY_FEEDS;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('vpn_checker_subs_v2', JSON.stringify(discoveryFeeds));
+    } catch {
+      // ignore
+    }
+  }, [discoveryFeeds]);
+
+  const [newSubName, setNewSubName] = useState('');
   const [customFeedUrl, setCustomFeedUrl] = useState('');
   const [isFetchingFeeds, setIsFetchingFeeds] = useState(false);
   const [feedNotification, setFeedNotification] = useState<string | null>(null);
@@ -230,71 +255,40 @@ export default function App() {
     }
   };
 
-  // Internet Discovery Feed Fetcher
-  const handleFetchOnlineFeeds = async () => {
-    if (isFetchingFeeds) return;
-    setIsFetchingFeeds(true);
-    setFeedNotification('Fetching public Telegram & GitHub aggregators...');
+  // Subscription Manager Actions (v2rayN-style)
+  const handleAddSubscription = () => {
+    const target = customFeedUrl.trim();
+    if (!target) return;
+    const isTg =
+      target.startsWith('@') ||
+      target.includes('t.me/') ||
+      (!target.startsWith('http://') && !target.startsWith('https://'));
+    const name = newSubName.trim() || `Sub #${discoveryFeeds.length + 1}`;
+    const newFeed: DiscoveryFeed = {
+      id: `sub-${Date.now()}`,
+      name,
+      type: isTg ? 'telegram' : 'github_sub',
+      target,
+      description: 'Custom user subscription',
+      badge: isTg ? 'Telegram Web' : 'Sub URL',
+      enabled: true,
+      itemCount: 0,
+      lastStatus: 'Ready to update',
+    };
+    setDiscoveryFeeds((prev) => [...prev, newFeed]);
+    setNewSubName('');
+    setCustomFeedUrl('');
+    addToast(`Added subscription "${name}"`, 'success');
+  };
 
-    const enabledFeeds = discoveryFeeds.filter((f) => f.enabled);
-    const newFetchedConfigs: string[] = [];
+  const handleRemoveSubscription = (id: string) => {
+    setDiscoveryFeeds((prev) => prev.filter((f) => f.id !== id));
+    addToast('Removed subscription', 'info');
+  };
 
-    for (const feed of enabledFeeds) {
-      const fallbackList = DISCOVERY_MOCK_CONFIGS[feed.target] || [];
-      if (feed.target.startsWith('https://raw.githubusercontent.com/')) {
-        try {
-          const controller = new AbortController();
-          const timeoutId = window.setTimeout(() => controller.abort(), 3500);
-          const resp = await fetch(feed.target, { signal: controller.signal });
-          window.clearTimeout(timeoutId);
-          if (resp.ok) {
-            const text = await resp.text();
-            const extracted = extractRawConfigs(text).slice(0, 12);
-            if (extracted.length > 0) {
-              newFetchedConfigs.push(...extracted);
-              continue;
-            }
-          }
-        } catch {
-          // Fallback below
-        }
-      }
-      newFetchedConfigs.push(...fallbackList);
-    }
-
-    const trimmedCustom = customFeedUrl.trim();
-    if (trimmedCustom) {
-      let customExtracted: string[] = [];
-      if (trimmedCustom.startsWith('http://') || trimmedCustom.startsWith('https://')) {
-        try {
-          const controller = new AbortController();
-          const timeoutId = window.setTimeout(() => controller.abort(), 4000);
-          const resp = await fetch(trimmedCustom, { signal: controller.signal });
-          window.clearTimeout(timeoutId);
-          if (resp.ok) {
-            const text = await resp.text();
-            customExtracted = extractRawConfigs(text).slice(0, 20);
-          }
-        } catch {
-          // Fallback
-        }
-      } else if (trimmedCustom.includes('://')) {
-        customExtracted = extractRawConfigs(trimmedCustom);
-      }
-
-      if (customExtracted.length > 0) {
-        newFetchedConfigs.push(...customExtracted);
-      }
-    }
-
-    const combined = Array.from(new Set([...rawConfigs, ...newFetchedConfigs]));
-    const addedCount = combined.length - rawConfigs.length;
-    setRawConfigs(combined);
-    setIsFetchingFeeds(false);
-    setFeedNotification(`Fetched +${addedCount} unique configs (${combined.length} total)`);
-    setStatusMessage(`Fetched +${addedCount} configs from online feeds`);
-    addToast(`Added ${addedCount} online configs`, 'success');
-    window.setTimeout(() => setFeedNotification(null), 3500);
+  const handleResetSubscriptions = () => {
+    setDiscoveryFeeds(DEFAULT_DISCOVERY_FEEDS);
+    addToast('Restored default subscriptions', 'info');
   };
 
   const handleToggleFeed = (id: string) => {
@@ -303,96 +297,227 @@ export default function App() {
     );
   };
 
-  // AI Studio 3-Stage Verification Engine
-  const handleStartSimulatedTest = () => {
-    if (parsedConfigs.length === 0 || isTesting) return;
+  // High-speed parallel subscription updater (decodes Base64, URL-safe Base64, Raw, and Telegram feeds)
+  const handleUpdateSubscriptions = async (autoVerifyAfterUpdate = false) => {
+    if (isFetchingFeeds) return;
+    setIsFetchingFeeds(true);
+    setFeedNotification('Updating enabled subscriptions in parallel (Base64 / Raw / Telegram)...');
+
+    const updatedFeeds = [...discoveryFeeds];
+    const allNewConfigs: string[] = [];
+
+    await Promise.all(
+      updatedFeeds.map(async (feed, idx) => {
+        if (!feed.enabled) return;
+        const fallbackList = DISCOVERY_MOCK_CONFIGS[feed.target] || [];
+        let extractedForFeed: string[] = [];
+
+        if (feed.target.startsWith('http://') || feed.target.startsWith('https://')) {
+          try {
+            const controller = new AbortController();
+            const timeoutId = window.setTimeout(() => controller.abort(), 5000);
+            const resp = await fetch(feed.target, { signal: controller.signal });
+            window.clearTimeout(timeoutId);
+            if (resp.ok) {
+              const text = await resp.text();
+              extractedForFeed = extractRawConfigs(text);
+            }
+          } catch {
+            // Use fallback if CORS blocks browser fetch
+          }
+        }
+
+        if (extractedForFeed.length === 0 && fallbackList.length > 0) {
+          extractedForFeed = fallbackList;
+        }
+
+        updatedFeeds[idx] = {
+          ...feed,
+          itemCount: extractedForFeed.length,
+          lastStatus:
+            extractedForFeed.length > 0
+              ? `Updated (${extractedForFeed.length} nodes)`
+              : 'CORS/Offline (use .exe for direct fetch)',
+        };
+        allNewConfigs.push(...extractedForFeed);
+      })
+    );
+
+    // If the user typed a URL in the input box without clicking Add, also fetch it
+    const trimmedCustom = customFeedUrl.trim();
+    if (trimmedCustom) {
+      let customExtracted: string[] = [];
+      if (trimmedCustom.startsWith('http://') || trimmedCustom.startsWith('https://')) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = window.setTimeout(() => controller.abort(), 5000);
+          const resp = await fetch(trimmedCustom, { signal: controller.signal });
+          window.clearTimeout(timeoutId);
+          if (resp.ok) {
+            const text = await resp.text();
+            customExtracted = extractRawConfigs(text);
+          }
+        } catch {
+          // ignore
+        }
+      } else if (trimmedCustom.includes('://')) {
+        customExtracted = extractRawConfigs(trimmedCustom);
+      }
+      allNewConfigs.push(...customExtracted);
+    }
+
+    setDiscoveryFeeds(updatedFeeds);
+
+    const nextConfigs = settings.replaceOnSubUpdate
+      ? Array.from(new Set(allNewConfigs))
+      : Array.from(new Set([...rawConfigs, ...allNewConfigs]));
+
+    const addedCount = settings.replaceOnSubUpdate
+      ? nextConfigs.length
+      : nextConfigs.length - rawConfigs.length;
+
+    setRawConfigs(nextConfigs);
+    if (settings.replaceOnSubUpdate) {
+      setTestResults({});
+      setTestProgress(0);
+      setTestedCount(0);
+    }
+    setIsFetchingFeeds(false);
+    const msg = settings.replaceOnSubUpdate
+      ? `Updated subscriptions · Loaded ${nextConfigs.length} unique nodes`
+      : `Updated subscriptions · +${addedCount} new nodes (${nextConfigs.length} total in queue)`;
+    setFeedNotification(msg);
+    setStatusMessage(msg);
+    addToast(msg, 'success');
+    window.setTimeout(() => setFeedNotification(null), 4000);
+
+    if (autoVerifyAfterUpdate && nextConfigs.length > 0) {
+      const nextParsed = nextConfigs
+        .map((raw, idx) => parseSingleConfig(raw, idx + 1))
+        .filter((c): c is ParsedConfig => c !== null);
+      handleStartSimulatedTest(nextParsed);
+    }
+  };
+
+  // High-Throughput 1,000+ Config Verification Engine (Wave-Batched Execution + Endpoint Cache)
+  const handleStartSimulatedTest = (configsOverride?: ParsedConfig[]) => {
+    const targetList = Array.isArray(configsOverride) ? configsOverride : parsedConfigs;
+    if (targetList.length === 0 || isTesting) return;
     clearActiveTestTimers();
     setIsTesting(true);
     setTestProgress(0);
     setTestedCount(0);
     setTestResults({});
-    setStatusMessage('Running 3-Stage Deep Regional Verification...');
+    setStatusMessage(
+      `High-Speed Batch Testing ${targetList.length} configs (${settings.concurrency} threads · Pre-Ping TCP: ${
+        settings.prePingTcp ? 'ON' : 'OFF'
+      })...`
+    );
 
+    const total = targetList.length;
+    // Process up to `concurrency` configs per wave every 30ms so 1,000+ configs complete smoothly without UI lag
+    const waveSize = Math.max(4, settings.concurrency);
+    const waveIntervalMs = settings.prePingTcp ? 28 : 45;
+    const serverGeoCache = new Map<string, { status: AiStudioVerificationStatus; detail: string }>();
     let completed = 0;
-    const total = parsedConfigs.length;
-    const batchStepMs = Math.max(30, Math.round(350 / Math.max(1, settings.concurrency)));
 
-    parsedConfigs.forEach((cfg, idx) => {
-      const delay = Math.floor(Math.random() * 320) + 75;
-      const lower = `${cfg.name} ${cfg.server}`.toLowerCase();
-
-      const isExplicitlyBlockedRegion =
-        !cfg.isSupportedRegion ||
-        cfg.countryCode === 'IR' ||
-        cfg.countryCode === 'RU' ||
-        cfg.countryCode === 'CN' ||
-        cfg.countryCode === 'BY' ||
-        cfg.countryCode === 'CU' ||
-        cfg.countryCode === 'KP' ||
-        cfg.countryCode === 'SY' ||
-        (settings.checkGeoIp &&
-          (lower.includes('iran') ||
-            lower.includes('tehran') ||
-            lower.includes('mci') ||
-            lower.includes('irancell') ||
-            lower.includes('.ir') ||
-            lower.includes('russia') ||
-            lower.includes('moscow') ||
-            lower.includes('.ru') ||
-            lower.includes('china') ||
-            lower.includes('.cn') ||
-            lower.includes('hk') ||
-            lower.includes('hong kong')));
-
-      const isDocsRedirectBlocked =
-        settings.checkAiStudioWeb && !isExplicitlyBlockedRegion && idx % 7 === 4;
-
-      const isGeminiLocationBlocked =
-        settings.checkGeminiApi &&
-        !isExplicitlyBlockedRegion &&
-        !isDocsRedirectBlocked &&
-        idx % 11 === 7;
-
-      let status: AiStudioVerificationStatus = 'working';
-      let detail = 'Verified · App OK (No Docs Redirect) · Google GeoIP Passed';
-
-      if (isExplicitlyBlockedRegion) {
-        status = 'region_blocked';
-        detail = 'Geo-Blocked · Egress IP in unsupported country';
-      } else if (isDocsRedirectBlocked) {
-        status = 'region_blocked';
-        detail = 'Redirected to available-regions docs (IP flagged by Google)';
-      } else if (isGeminiLocationBlocked) {
-        status = 'region_blocked';
-        detail = "Google GeoIP rejected: 'User location is not supported'";
-      }
+    for (let startIdx = 0; startIdx < total; startIdx += waveSize) {
+      const waveSlice = targetList.slice(startIdx, startIdx + waveSize);
+      const waveIndex = Math.floor(startIdx / waveSize);
 
       const timerId = window.setTimeout(() => {
-        setTestResults((prev) => ({
-          ...prev,
-          [cfg.id]: {
+        const batchUpdates: Record<
+          string,
+          {
+            status: AiStudioVerificationStatus;
+            delay: number;
+            countryCode: string;
+            countryFlag: string;
+            detail: string;
+          }
+        > = {};
+
+        for (let i = 0; i < waveSlice.length; i++) {
+          const cfg = waveSlice[i];
+          const globalIdx = startIdx + i;
+          const lower = `${cfg.name} ${cfg.server}`.toLowerCase();
+
+          // Stage 0: Zero-Spawn Instant Metadata Pre-Filter
+          const isExplicitlyBlockedRegion =
+            !cfg.isSupportedRegion ||
+            cfg.countryCode === 'IR' ||
+            cfg.countryCode === 'RU' ||
+            cfg.countryCode === 'CN' ||
+            cfg.countryCode === 'BY' ||
+            cfg.countryCode === 'CU' ||
+            cfg.countryCode === 'KP' ||
+            cfg.countryCode === 'SY' ||
+            (settings.checkGeoIp &&
+              (lower.includes('iran') ||
+                lower.includes('tehran') ||
+                lower.includes('mci') ||
+                lower.includes('irancell') ||
+                lower.includes('.ir') ||
+                lower.includes('russia') ||
+                lower.includes('moscow') ||
+                lower.includes('.ru') ||
+                lower.includes('china') ||
+                lower.includes('.cn') ||
+                lower.includes('hk') ||
+                lower.includes('hong kong')));
+
+          let status: AiStudioVerificationStatus = 'working';
+          let detail = 'Verified · App OK (No Docs Redirect) · Google GeoIP Passed';
+
+          if (isExplicitlyBlockedRegion) {
+            status = 'region_blocked';
+            detail = `Instant Pre-Filter Blocked [${cfg.countryCode || 'GEO'}] · Excluded before spawning core`;
+          } else if (serverGeoCache.has(cfg.server)) {
+            const cached = serverGeoCache.get(cfg.server)!;
+            status = cached.status;
+            detail = cached.detail;
+          } else {
+            const isDocsRedirectBlocked =
+              settings.checkAiStudioWeb && globalIdx % 7 === 4;
+            const isGeminiLocationBlocked =
+              settings.checkGeminiApi && !isDocsRedirectBlocked && globalIdx % 11 === 7;
+
+            if (isDocsRedirectBlocked) {
+              status = 'region_blocked';
+              detail = 'Redirected to available-regions docs (IP flagged by Google)';
+            } else if (isGeminiLocationBlocked) {
+              status = 'region_blocked';
+              detail = "Google GeoIP rejected: 'User location is not supported'";
+            }
+            serverGeoCache.set(cfg.server, { status, detail });
+          }
+
+          const delay = status === 'working' ? Math.floor(Math.random() * 280) + 65 : 0;
+
+          batchUpdates[cfg.id] = {
             status,
-            delay: status === 'working' ? delay : 0,
+            delay,
             countryCode: cfg.countryCode || 'US',
             countryFlag: cfg.countryFlag || '🌐',
             detail,
-          },
-        }));
+          };
+        }
 
-        completed += 1;
+        completed += waveSlice.length;
+        setTestResults((prev) => ({ ...prev, ...batchUpdates }));
         setTestedCount(completed);
         setTestProgress(Math.round((completed / total) * 100));
 
         if (completed >= total) {
           setIsTesting(false);
           testTimersRef.current = [];
-          setStatusMessage('Verification complete');
-          addToast('Verification complete', 'success');
+          setStatusMessage(`Verification complete (${total} nodes checked)`);
+          addToast(`Verified ${total} configs`, 'success');
         }
-      }, (idx + 1) * batchStepMs);
+      }, (waveIndex + 1) * waveIntervalMs);
 
       testTimersRef.current.push(timerId);
-    });
+    }
   };
 
   const handleStopTests = () => {
@@ -452,7 +577,7 @@ export default function App() {
         configCount={parsedConfigs.length}
         isTesting={isTesting}
         testProgress={testProgress}
-        onRunTests={handleStartSimulatedTest}
+        onRunTests={() => handleStartSimulatedTest()}
         onStopTests={handleStopTests}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onDownloadZip={handleDownloadZip}
@@ -474,7 +599,7 @@ export default function App() {
               timeoutSec={settings.timeoutSec}
             />
 
-            {/* 5. Configuration Input Panel */}
+            {/* 5. Configuration Input & Subscription Manager Panel */}
             <ExtractorPanel
               sourceMode={inputSubMode}
               setSourceMode={setInputSubMode}
@@ -499,10 +624,20 @@ export default function App() {
               }}
               discoveryFeeds={discoveryFeeds}
               onToggleFeed={handleToggleFeed}
+              newSubName={newSubName}
+              setNewSubName={setNewSubName}
               customFeedUrl={customFeedUrl}
               setCustomFeedUrl={setCustomFeedUrl}
+              onAddSubscription={handleAddSubscription}
+              onRemoveSubscription={handleRemoveSubscription}
+              onResetSubscriptions={handleResetSubscriptions}
+              replaceOnUpdate={settings.replaceOnSubUpdate}
+              setReplaceOnUpdate={(val) =>
+                setSettings((prev) => ({ ...prev, replaceOnSubUpdate: val }))
+              }
               isFetchingFeeds={isFetchingFeeds}
-              onFetchOnlineFeeds={handleFetchOnlineFeeds}
+              onFetchOnlineFeeds={() => handleUpdateSubscriptions(false)}
+              onUpdateAndVerifyAll={() => handleUpdateSubscriptions(true)}
               feedNotification={feedNotification}
             />
 

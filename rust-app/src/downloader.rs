@@ -14,6 +14,12 @@ struct GitHubAsset {
     browser_download_url: String,
 }
 
+use crate::fetcher::{get_default_sources, DiscoverySource};
+
+fn default_true() -> bool {
+    true
+}
+
 /// Persistent application configuration stored in `config.json` in the exact same directory as the `.exe`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
@@ -28,6 +34,12 @@ pub struct AppConfig {
     pub check_ai_studio_web: bool,
     pub check_gemini_api: bool,
     pub custom_source_url: String,
+    #[serde(default = "get_default_sources")]
+    pub subscriptions: Vec<DiscoverySource>,
+    #[serde(default)]
+    pub replace_on_sub_update: bool,
+    #[serde(default = "default_true")]
+    pub pre_ping_tcp: bool,
 }
 
 impl Default for AppConfig {
@@ -41,17 +53,20 @@ impl Default for AppConfig {
             .unwrap_or_else(|| exe_dir.join("v2rayN.exe"));
 
         Self {
-            theme: "system".to_string(),
+            theme: "dark".to_string(),
             xray_path: xray.to_string_lossy().to_string(),
             singbox_path: singbox.to_string_lossy().to_string(),
             v2rayn_path: v2rayn.to_string_lossy().to_string(),
-            concurrency: 12,
-            timeout_secs: 15,
+            concurrency: 35,
+            timeout_secs: 10,
             strict_region_only: true,
             check_geo_ip: true,
             check_ai_studio_web: true,
             check_gemini_api: true,
             custom_source_url: String::new(),
+            subscriptions: get_default_sources(),
+            replace_on_sub_update: false,
+            pre_ping_tcp: true,
         }
     }
 }

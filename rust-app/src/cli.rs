@@ -1,7 +1,7 @@
 use crate::downloader::{find_core, get_app_config_path, load_app_config};
 use crate::extractor::extract_configs;
 use crate::fetcher::{fetch_multiple_sources, get_default_sources};
-use crate::tester::{BatchRunner, TestStatus};
+use crate::tester::{BatchRunner, TestOptions, TestStatus};
 use clap::Parser;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
@@ -15,7 +15,7 @@ pub struct CliArgs {
     #[arg(long, default_value_t = false)]
     pub cli: bool,
 
-    /// Automatically discover and fetch public configs from internet feeds & Telegram channels
+    /// Automatically discover and fetch public configs from saved subscriptions & feeds
     #[arg(long, default_value_t = false)]
     pub fetch_sources: bool,
 
@@ -52,10 +52,14 @@ pub async fn run_cli(args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
     let mut configs = Vec::new();
 
     if args.fetch_sources {
-        println!("Fetching online configurations from public Telegram channels & GitHub subscriptions...");
-        let sources = get_default_sources();
+        println!("Updating subscriptions in parallel...");
+        let sources = if app_cfg.subscriptions.is_empty() {
+            get_default_sources()
+        } else {
+            app_cfg.subscriptions.clone()
+        };
         let fetched = fetch_multiple_sources(&sources).await;
-        println!("Discovered {} configurations from public feeds.", fetched.len());
+        println!("Fetched {} unique configurations from enabled subscriptions.", fetched.len());
         configs.extend(fetched);
     }
 
@@ -101,9 +105,12 @@ pub async fn run_cli(args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
             .unwrap_or_else(|| "Not found".into())
     );
     println!("Testing 3-Pillar Verification: [GeoIP] · [AI Studio Web] · [Gemini API]");
-    println!("Concurrency: {} | Timeout: {}s\n", concurrency, app_cfg.timeout_secs);
+    println!(
+        "Concurrency: {} | Timeout: {}s | Pre-Ping TCP: {}\n",
+        concurrency, app_cfg.timeout_secs, app_cfg.pre_ping_tcp
+    );
 
-    let (tx, mut rx) = mpsc::channel(100);
+    let (tx, mut rx) = mpsc::channel(2048);
     let cancel = Arc::new(AtomicBool::new(false));
 
     let runner = BatchRunner {
@@ -111,6 +118,14 @@ pub async fn run_cli(args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
         xray_path: xray_core,
         singbox_path: singbox_core,
         concurrency,
+        options: TestOptions {
+            timeout_secs: app_cfg.timeout_secs,
+            strict_region_only: args.filter_supported_only,
+            check_geo_ip: app_cfg.check_geo_ip,
+            check_ai_studio_web: app_cfg.check_ai_studio_web,
+            check_gemini_api: app_cfg.check_gemini_api,
+            pre_ping_tcp: app_cfg.pre_ping_tcp,
+        },
         is_cancelled: cancel,
     };
 

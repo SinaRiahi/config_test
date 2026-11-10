@@ -32,44 +32,70 @@ export const SUPPORTED_REGIONS_MAP: Record<string, { name: string; flag: string;
 
 export const DEFAULT_DISCOVERY_FEEDS: DiscoveryFeed[] = [
   {
-    id: 'tg-v2rayng',
-    name: 'V2Ray Reality Daily',
-    type: 'telegram',
-    target: 'v2rayNG_VPNo',
-    description: 'High-speed VLESS Reality and Trojan nodes for Telegram users',
-    badge: 'Telegram Public',
-    enabled: true,
-    itemCount: 45,
-  },
-  {
-    id: 'tg-freev2rays',
-    name: 'Free V2Rays Public Mirror',
-    type: 'telegram',
-    target: 'FreeV2rays',
-    description: 'Daily community mixed proxy pool (VMess / HY2 / VLESS)',
-    badge: 'Telegram Public',
-    enabled: true,
-    itemCount: 60,
-  },
-  {
     id: 'gh-barry',
-    name: 'GitHub Daily Reality Aggregator',
+    name: 'Barry-Far V2Ray Sub #1',
     type: 'github_sub',
     target: 'https://raw.githubusercontent.com/barry-far/V2ray-Configs/main/Sub1.txt',
-    description: 'Curated and tested high-speed Reality nodes hosted on GitHub',
-    badge: 'GitHub Raw',
+    description: 'Curated and tested high-speed Reality & VMess nodes on GitHub',
+    badge: 'GitHub Sub',
     enabled: true,
     itemCount: 80,
+    lastStatus: 'Ready to update',
   },
   {
     id: 'gh-yebekhe',
-    name: 'Community V2Ray Collector',
+    name: 'Telegram V2Ray Collector (Mix)',
     type: 'github_sub',
     target: 'https://raw.githubusercontent.com/yebekhe/TelegramV2rayCollector/main/sub/normal/mix',
-    description: 'Automated multi-source collector updated hourly',
-    badge: 'GitHub Raw',
+    description: 'Automated multi-source collector updated hourly (Raw / Base64)',
+    badge: 'GitHub Sub',
     enabled: true,
     itemCount: 120,
+    lastStatus: 'Ready to update',
+  },
+  {
+    id: 'gh-mahdibland',
+    name: 'Mahdibland V2Ray Aggregator (Base64)',
+    type: 'github_sub',
+    target: 'https://raw.githubusercontent.com/mahdibland/V2RayAggregator/master/sub/sub_merge_base64.txt',
+    description: 'Large merged Base64 subscription pool (1,000+ nodes)',
+    badge: 'Base64 Sub',
+    enabled: true,
+    itemCount: 250,
+    lastStatus: 'Ready to update',
+  },
+  {
+    id: 'gh-epodonios',
+    name: 'Epodonios V2Ray Sub (Base64)',
+    type: 'github_sub',
+    target: 'https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/Splitted-By-Protocol/vless.txt',
+    description: 'Dedicated VLESS Reality & WS subscription feed',
+    badge: 'VLESS Sub',
+    enabled: true,
+    itemCount: 150,
+    lastStatus: 'Ready to update',
+  },
+  {
+    id: 'tg-v2rayng',
+    name: 'V2Ray Reality Daily (@v2rayNG_VPNo)',
+    type: 'telegram',
+    target: 'v2rayNG_VPNo',
+    description: 'High-speed VLESS Reality and Trojan nodes for Telegram users',
+    badge: 'Telegram Web',
+    enabled: true,
+    itemCount: 45,
+    lastStatus: 'Ready to update',
+  },
+  {
+    id: 'tg-freev2rays',
+    name: 'Free V2Rays Mirror (@FreeV2rays)',
+    type: 'telegram',
+    target: 'FreeV2rays',
+    description: 'Daily community mixed proxy pool (VMess / HY2 / VLESS)',
+    badge: 'Telegram Web',
+    enabled: true,
+    itemCount: 60,
+    lastStatus: 'Ready to update',
   },
 ];
 
@@ -174,7 +200,16 @@ export function parseJsonCandidates(text: string): string[] {
 export function extractRawConfigs(text: string): string[] {
   let expandedText = text;
 
-  // Automatically decode any raw Base64 subscription blocks
+  // 1. Check if the entire body (with whitespace/newlines stripped) is a wrapped Base64 v2rayN subscription
+  const compactAll = text.replace(/\s+/g, '');
+  if (compactAll.length >= 24 && !compactAll.includes('://')) {
+    const decodedAll = decodeB64(compactAll);
+    if (decodedAll && decodedAll.includes('://')) {
+      expandedText += '\n' + decodedAll;
+    }
+  }
+
+  // 2. Also decode individual single-line Base64 subscription blocks
   const lines = text.split(/\r?\n/);
   for (const line of lines) {
     const trimmed = line.trim();

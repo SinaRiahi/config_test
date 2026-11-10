@@ -67,7 +67,7 @@ export const Header: React.FC<HeaderProps> = ({
               }`}
             >
               <Globe className="w-3.5 h-3.5 text-[#67E8F9]" />
-              <span className="whitespace-nowrap">Online Feeds</span>
+              <span className="whitespace-nowrap">Subscriptions</span>
             </button>
           </div>
 

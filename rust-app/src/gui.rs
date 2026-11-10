@@ -3,8 +3,11 @@ use crate::downloader::{
     save_app_config, AppConfig,
 };
 use crate::extractor::extract_configs;
-use crate::fetcher::{fetch_multiple_sources, get_default_sources, DiscoverySource, SourceType};
-use crate::tester::{BatchRunner, TestResult, TestStatus};
+use crate::fetcher::{
+    classify_source_target, get_default_sources, update_subscriptions_concurrently,
+    DiscoverySource, SubscriptionUpdateResult,
+};
+use crate::tester::{BatchRunner, TestOptions, TestResult, TestStatus};
 use crate::{load_app_icon_rgba, APP_ICON_HEIGHT, APP_ICON_WIDTH};
 use eframe::egui::{
     self, Color32, ColorImage, FontFamily, FontId, Margin, RichText, Rounding, Stroke, TextStyle,
@@ -30,19 +33,6 @@ enum StatusFilter {
     FailedOnly,
 }
 
-/// Theme: Midnight Signal Color Palette
-/// - Main background: `#090E17`
-/// - Secondary background: `#0F1724`
-/// - Card / panel background: `#131D2B`
-/// - Elevated surfaces: `#1B293A`
-/// - Input background: `#0C1420`
-/// - Primary accent (Electric Cyan): `#22D3EE`
-/// - Secondary accent (Soft Cyan): `#67E8F9`
-/// - Success / Verified (Emerald): `#34D399`
-/// - Error / Failed (Rose): `#FB7185`
-/// - Warning / Blocked (Amber): `#FBBF24`
-/// - Typography: `#E8EEF6`, `#94A3B8`, `#64748B`
-/// - Hairline border: `#263548`, Focus border: `#22D3EE`
 struct Palette {
     bg_canvas: Color32,
     bg_secondary: Color32,
@@ -94,6 +84,7 @@ struct CoreDownloadUpdate {
 }
 
 pub struct VpnCheckerApp {
+    #[allow(dead_code)]
     app_icon_tex: TextureHandle,
     input_mode: InputMode,
     input_collapsed: bool,
@@ -107,15 +98,19 @@ pub struct VpnCheckerApp {
     check_geo_ip: bool,
     check_ai_studio_web: bool,
     check_gemini_api: bool,
+    pre_ping_tcp: bool,
     is_testing: bool,
     cancel_flag: Arc<AtomicBool>,
     rx_results: Option<mpsc::Receiver<TestResult>>,
 
-    // Discovery Sources & Async Channel
+    // Subscription Manager & Async Update Channel
     discovery_sources: Vec<DiscoverySource>,
+    new_sub_name: String,
     custom_source_url: String,
+    replace_on_sub_update: bool,
+    auto_verify_after_fetch: bool,
     is_fetching_online: bool,
-    rx_fetched: Option<mpsc::Receiver<Vec<String>>>,
+    rx_fetched: Option<mpsc::Receiver<SubscriptionUpdateResult>>,
 
     // Settings & Third-Party App Paths (persisted in <exe_dir>/config.json)
     xray_path: String,
@@ -162,6 +157,12 @@ impl VpnCheckerApp {
             cc.egui_ctx
                 .load_texture("winged_v_app_icon", color_image, TextureOptions::LINEAR);
 
+        let discovery_sources = if saved.subscriptions.is_empty() {
+            get_default_sources()
+        } else {
+            saved.subscriptions
+        };
+
         Self {
             app_icon_tex,
             input_mode: InputMode::PasteText,
@@ -176,11 +177,15 @@ impl VpnCheckerApp {
             check_geo_ip: saved.check_geo_ip,
             check_ai_studio_web: saved.check_ai_studio_web,
             check_gemini_api: saved.check_gemini_api,
+            pre_ping_tcp: saved.pre_ping_tcp,
             is_testing: false,
             cancel_flag: Arc::new(AtomicBool::new(false)),
             rx_results: None,
-            discovery_sources: get_default_sources(),
+            discovery_sources,
+            new_sub_name: String::new(),
             custom_source_url: saved.custom_source_url,
+            replace_on_sub_update: saved.replace_on_sub_update,
+            auto_verify_after_fetch: false,
             is_fetching_online: false,
             rx_fetched: None,
             xray_path: saved.xray_path,
@@ -193,8 +198,9 @@ impl VpnCheckerApp {
             rx_cores: None,
             status_filter: StatusFilter::All,
             search_query: String::new(),
-            status_msg: "Ready — Paste proxy links above or switch to Online Feeds to begin"
-                .to_string(),
+            status_msg:
+                "Ready — Paste proxy links above or switch to Subscriptions to update & verify"
+                    .to_string(),
         }
     }
 
@@ -237,7 +243,10 @@ impl VpnCheckerApp {
             check_geo_ip: self.check_geo_ip,
             check_ai_studio_web: self.check_ai_studio_web,
             check_gemini_api: self.check_gemini_api,
+            pre_ping_tcp: self.pre_ping_tcp,
             custom_source_url: self.custom_source_url.clone(),
+            subscriptions: self.discovery_sources.clone(),
+            replace_on_sub_update: self.replace_on_sub_update,
         };
         if let Ok(path) = save_app_config(&cfg) {
             self.config_file_path = path.to_string_lossy().to_string();
@@ -266,6 +275,77 @@ impl VpnCheckerApp {
             }
         }
         added
+    }
+
+    fn start_verification_batch(&mut self) {
+        let total_queued = self.configs.len();
+        if total_queued == 0 {
+            return;
+        }
+        self.results.clear();
+        self.selected_index = None;
+        self.is_testing = true;
+        self.cancel_flag.store(false, Ordering::Relaxed);
+        self.status_msg = format!(
+            "High-Speed Batch Testing {} configs ({} threads · Pre-Ping TCP: {})...",
+            total_queued,
+            self.concurrency,
+            if self.pre_ping_tcp { "ON" } else { "OFF" }
+        );
+        let (tx, rx) = mpsc::channel(2048);
+        self.rx_results = Some(rx);
+
+        let runner = BatchRunner {
+            configs: self.configs.clone(),
+            xray_path: if self.xray_path.is_empty() {
+                None
+            } else {
+                Some(PathBuf::from(&self.xray_path))
+            },
+            singbox_path: if self.singbox_path.is_empty() {
+                None
+            } else {
+                Some(PathBuf::from(&self.singbox_path))
+            },
+            concurrency: self.concurrency,
+            options: TestOptions {
+                timeout_secs: self.timeout_secs,
+                strict_region_only: self.strict_region_only,
+                check_geo_ip: self.check_geo_ip,
+                check_ai_studio_web: self.check_ai_studio_web,
+                check_gemini_api: self.check_gemini_api,
+                pre_ping_tcp: self.pre_ping_tcp,
+            },
+            is_cancelled: self.cancel_flag.clone(),
+        };
+
+        tokio::spawn(async move {
+            runner.run(tx).await;
+        });
+    }
+
+    fn trigger_subscription_update(&mut self, auto_verify: bool) {
+        if self.is_fetching_online {
+            return;
+        }
+        self.is_fetching_online = true;
+        self.auto_verify_after_fetch = auto_verify;
+        let enabled_count = self
+            .discovery_sources
+            .iter()
+            .filter(|s| s.enabled)
+            .count();
+        self.status_msg = format!(
+            "Updating {enabled_count} enabled subscriptions in parallel (Base64 / Raw / Telegram)..."
+        );
+
+        let sources = self.discovery_sources.clone();
+        let (tx, rx) = mpsc::channel(1);
+        self.rx_fetched = Some(rx);
+        tokio::spawn(async move {
+            let result = update_subscriptions_concurrently(sources).await;
+            let _ = tx.send(result).await;
+        });
     }
 }
 
@@ -304,21 +384,41 @@ impl eframe::App for VpnCheckerApp {
                 .filter(|r| r.status == TestStatus::Working)
                 .count();
             self.status_msg = format!(
-                "Verification Complete · {working} of {} passed all 3 AI Studio gates",
+                "Verification Complete · {working} of {} passed all AI Studio gates",
                 self.configs.len()
             );
         }
 
-        // 2. Poll Online Discovery Channel
+        // 2. Poll Subscription Update Channel
         if let Some(rx) = &mut self.rx_fetched {
-            if let Ok(fetched_list) = rx.try_recv() {
-                let added = self.merge_configs(fetched_list);
+            if let Ok(update_res) = rx.try_recv() {
+                self.discovery_sources = update_res.updated_sources;
                 self.is_fetching_online = false;
                 self.rx_fetched = None;
-                self.status_msg = format!(
-                    "Fetched +{added} unique configs ({} total in queue)",
-                    self.configs.len()
-                );
+
+                if self.replace_on_sub_update {
+                    self.configs = update_res.configs;
+                    self.results.clear();
+                    self.selected_index = None;
+                    self.status_msg = format!(
+                        "Subscriptions Updated · {} unique nodes loaded into queue",
+                        self.configs.len()
+                    );
+                } else {
+                    let added = self.merge_configs(update_res.configs);
+                    self.status_msg = format!(
+                        "Subscriptions Updated · +{added} new nodes ({} total in queue)",
+                        self.configs.len()
+                    );
+                }
+                self.persist_config();
+
+                if self.auto_verify_after_fetch && !self.configs.is_empty() {
+                    self.auto_verify_after_fetch = false;
+                    self.start_verification_batch();
+                } else {
+                    self.auto_verify_after_fetch = false;
+                }
             }
         }
 
@@ -561,7 +661,7 @@ impl eframe::App for VpnCheckerApp {
 
                     // Runtime & Verification Options
                     ui.label(
-                        RichText::new("Verification Engine & 3-Stage Regional Gates")
+                        RichText::new("High-Throughput Verification Engine & 3-Stage Regional Gates")
                             .strong()
                             .size(14.5)
                             .color(p.text_primary),
@@ -569,22 +669,66 @@ impl eframe::App for VpnCheckerApp {
                     ui.add_space(4.0);
 
                     ui.horizontal(|ui| {
-                        ui.label(RichText::new("Parallel Threads:").color(p.text_secondary));
+                        ui.label(
+                            RichText::new("Parallel Threads (scroll to adjust):")
+                                .color(p.text_secondary),
+                        );
+                        let thread_resp = ui.add(
+                            egui::DragValue::new(&mut self.concurrency)
+                                .range(1..=200)
+                                .speed(1.0),
+                        );
+                        if thread_resp.hovered() {
+                            let scroll_y = ui.input(|i| i.raw_scroll_delta.y);
+                            if scroll_y > 0.0 {
+                                self.concurrency = (self.concurrency + 5).min(200);
+                                save_needed = true;
+                            } else if scroll_y < 0.0 {
+                                self.concurrency = self.concurrency.saturating_sub(5).max(1);
+                                save_needed = true;
+                            }
+                        }
+                        if thread_resp.changed() {
+                            save_needed = true;
+                        }
+
+                        ui.add_space(14.0);
+                        ui.label(
+                            RichText::new("Timeout (sec, scroll):")
+                                .color(p.text_secondary),
+                        );
+                        let timeout_resp = ui.add(
+                            egui::DragValue::new(&mut self.timeout_secs)
+                                .range(3..=60)
+                                .speed(1.0),
+                        );
+                        if timeout_resp.hovered() {
+                            let scroll_y = ui.input(|i| i.raw_scroll_delta.y);
+                            if scroll_y > 0.0 {
+                                self.timeout_secs = (self.timeout_secs + 1).min(60);
+                                save_needed = true;
+                            } else if scroll_y < 0.0 {
+                                self.timeout_secs = self.timeout_secs.saturating_sub(1).max(3);
+                                save_needed = true;
+                            }
+                        }
+                        if timeout_resp.changed() {
+                            save_needed = true;
+                        }
+                    });
+
+                    ui.add_space(4.0);
+                    ui.horizontal(|ui| {
                         if ui
-                            .add(egui::DragValue::new(&mut self.concurrency).range(1..=50))
+                            .checkbox(
+                                &mut self.pre_ping_tcp,
+                                "Fast Pre-Spawn TCP Ping & Dead Server Cache (Recommended for 1000+ configs)",
+                            )
                             .changed()
                         {
                             save_needed = true;
                         }
-                        ui.add_space(16.0);
-                        ui.label(RichText::new("Socket Timeout (sec):").color(p.text_secondary));
-                        if ui
-                            .add(egui::DragValue::new(&mut self.timeout_secs).range(5..=30))
-                            .changed()
-                        {
-                            save_needed = true;
-                        }
-                        ui.add_space(16.0);
+                        ui.add_space(10.0);
                         if ui
                             .checkbox(
                                 &mut self.strict_region_only,
@@ -665,7 +809,7 @@ impl eframe::App for VpnCheckerApp {
             .filter(|r| r.status == TestStatus::Failed || r.status == TestStatus::ApiBlocked)
             .count();
 
-        // Top Header Bar with Embedded Winged-V App Icon
+        // Top Header Bar (Clean, no app title/icon clutter inside UI)
         egui::TopBottomPanel::top("top_header_bar")
             .frame(
                 egui::Frame::none()
@@ -685,10 +829,20 @@ impl eframe::App for VpnCheckerApp {
                         self.input_mode = InputMode::PasteText;
                         self.input_collapsed = false;
                     }
+                    let enabled_subs = self
+                        .discovery_sources
+                        .iter()
+                        .filter(|s| s.enabled)
+                        .count();
                     if ui
                         .selectable_label(
                             self.input_mode == InputMode::DiscoverOnline,
-                            RichText::new("Online Feeds").size(13.0).strong(),
+                            RichText::new(format!(
+                                "Subscriptions ({enabled_subs}/{})",
+                                self.discovery_sources.len()
+                            ))
+                            .size(13.0)
+                            .strong(),
                         )
                         .clicked()
                     {
@@ -718,7 +872,7 @@ impl eframe::App for VpnCheckerApp {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui
                             .button(RichText::new("Settings").size(13.0))
-                            .on_hover_text("Configure xray.exe, sing-box.exe, and verification gates")
+                            .on_hover_text("Configure xray.exe, sing-box.exe, threads, and verification gates")
                             .clicked()
                         {
                             self.show_settings = true;
@@ -755,36 +909,7 @@ impl eframe::App for VpnCheckerApp {
                             });
 
                             if ui.add_enabled(total_queued > 0, run_btn).clicked() {
-                                self.results.clear();
-                                self.selected_index = None;
-                                self.is_testing = true;
-                                self.cancel_flag.store(false, Ordering::Relaxed);
-                                self.status_msg = format!(
-                                    "Testing {} configs (Egress GeoIP + Docs Redirect + Gemini API Gate)...",
-                                    total_queued
-                                );
-                                let (tx, rx) = mpsc::channel(256);
-                                self.rx_results = Some(rx);
-
-                                let runner = BatchRunner {
-                                    configs: self.configs.clone(),
-                                    xray_path: if self.xray_path.is_empty() {
-                                        None
-                                    } else {
-                                        Some(PathBuf::from(&self.xray_path))
-                                    },
-                                    singbox_path: if self.singbox_path.is_empty() {
-                                        None
-                                    } else {
-                                        Some(PathBuf::from(&self.singbox_path))
-                                    },
-                                    concurrency: self.concurrency,
-                                    is_cancelled: self.cancel_flag.clone(),
-                                };
-
-                                tokio::spawn(async move {
-                                    runner.run(tx).await;
-                                });
+                                self.start_verification_batch();
                             }
                         }
                     });
@@ -801,7 +926,7 @@ impl eframe::App for VpnCheckerApp {
             )
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
-                    let dot_color = if self.is_testing {
+                    let dot_color = if self.is_testing || self.is_fetching_online {
                         p.accent_cyan
                     } else if working_count > 0 {
                         p.green_fg
@@ -818,9 +943,10 @@ impl eframe::App for VpnCheckerApp {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.label(
                             RichText::new(format!(
-                                "{} threads · {}s timeout · Gates: {}{}{}",
+                                "{} threads · {}s timeout · TCP Pre-Ping: {} · Gates: {}{}{}",
                                 self.concurrency,
                                 self.timeout_secs,
+                                if self.pre_ping_tcp { "ON" } else { "OFF" },
                                 if self.check_geo_ip { "GeoIP " } else { "" },
                                 if self.check_ai_studio_web { "Web " } else { "" },
                                 if self.check_gemini_api { "GeminiAPI" } else { "" },
@@ -1021,7 +1147,7 @@ impl eframe::App for VpnCheckerApp {
 
                 ui.add_space(10.0);
 
-                // 2. Collapsible Input / Online Discovery Card
+                // 2. Collapsible Input / Subscription Manager Card
                 if !self.input_collapsed {
                     egui::Frame::none()
                         .fill(p.bg_card)
@@ -1119,124 +1245,274 @@ impl eframe::App for VpnCheckerApp {
                                     });
                                 }
                                 InputMode::DiscoverOnline => {
+                                    // Top Row: Title + Action Buttons (Update Subs / Update & Verify All)
                                     ui.horizontal(|ui| {
                                         ui.label(
                                             RichText::new(
-                                                "Public Telegram Channels & GitHub Aggregator Feeds",
+                                                "Subscription Manager (v2rayN Base64 / Raw / Clash / Telegram)",
                                             )
                                             .strong()
                                             .color(p.text_primary),
                                         );
-                                        ui.label(
-                                            RichText::new("(No API keys required)")
-                                                .size(12.0)
-                                                .color(p.text_secondary),
-                                        );
-                                    });
-                                    ui.add_space(6.0);
-
-                                    egui::Grid::new("online_sources_grid")
-                                        .num_columns(2)
-                                        .spacing([18.0, 6.0])
-                                        .show(ui, |ui| {
-                                            for (idx, source) in
-                                                self.discovery_sources.iter_mut().enumerate()
-                                            {
-                                                ui.horizontal(|ui| {
-                                                    ui.checkbox(&mut source.enabled, "");
-                                                    ui.label(
-                                                        RichText::new(&source.name)
-                                                            .strong()
-                                                            .color(p.text_primary),
-                                                    );
-                                                    ui.label(
-                                                        RichText::new(format!(
-                                                            "— {}",
-                                                            source.description
-                                                        ))
-                                                        .size(12.0)
-                                                        .color(p.text_secondary),
-                                                    );
-                                                });
-                                                if idx % 2 == 1 {
-                                                    ui.end_row();
-                                                }
-                                            }
-                                        });
-
-                                    ui.add_space(8.0);
-                                    ui.horizontal(|ui| {
-                                        ui.label(
-                                            RichText::new("Custom URL / @Channel:")
-                                                .color(p.text_secondary),
-                                        );
                                         if ui
-                                            .add(
-                                                egui::TextEdit::singleline(
-                                                    &mut self.custom_source_url,
-                                                )
-                                                .hint_text(
-                                                    "https://raw.githubusercontent.com/... or @TelegramChannel",
-                                                )
-                                                .desired_width(360.0),
+                                            .checkbox(
+                                                &mut self.replace_on_sub_update,
+                                                "Replace queue on update",
                                             )
                                             .changed()
                                         {
                                             self.persist_config();
                                         }
 
-                                        let fetch_btn = egui::Button::new(
-                                            RichText::new(if self.is_fetching_online {
-                                                "Fetching Feeds..."
-                                            } else {
-                                                "Fetch Online Configs"
-                                            })
-                                            .strong()
-                                            .color(Color32::from_rgb(9, 14, 23)),
-                                        )
-                                        .fill(p.accent_cyan);
-
-                                        if ui
-                                            .add_enabled(!self.is_fetching_online, fetch_btn)
-                                            .clicked()
-                                        {
-                                            self.is_fetching_online = true;
-                                            self.status_msg =
-                                                "Fetching public proxy feeds...".to_string();
-
-                                            let mut sources = self.discovery_sources.clone();
-                                            let custom =
-                                                self.custom_source_url.trim().to_string();
-                                            if !custom.is_empty() {
-                                                let stype = if custom.starts_with("http://")
-                                                    || custom.starts_with("https://")
-                                                {
-                                                    if custom.contains("t.me/") {
-                                                        SourceType::TelegramPublicChannel
+                                        ui.with_layout(
+                                            egui::Layout::right_to_left(egui::Align::Center),
+                                            |ui| {
+                                                let update_verify_btn = egui::Button::new(
+                                                    RichText::new(if self.is_fetching_online {
+                                                        "Updating..."
                                                     } else {
-                                                        SourceType::RawSubscriptionUrl
-                                                    }
-                                                } else {
-                                                    SourceType::TelegramPublicChannel
-                                                };
-                                                sources.push(DiscoverySource {
-                                                    name: "Custom".to_string(),
-                                                    source_type: stype,
-                                                    target: custom,
-                                                    description: String::new(),
-                                                    enabled: true,
-                                                });
-                                            }
+                                                        "Update & Verify All"
+                                                    })
+                                                    .strong()
+                                                    .color(Color32::from_rgb(9, 14, 23)),
+                                                )
+                                                .fill(p.green_fg);
 
-                                            let (tx, rx) = mpsc::channel(1);
-                                            self.rx_fetched = Some(rx);
-                                            tokio::spawn(async move {
-                                                let fetched =
-                                                    fetch_multiple_sources(&sources).await;
-                                                let _ = tx.send(fetched).await;
-                                            });
-                                        }
+                                                if ui
+                                                    .add_enabled(
+                                                        !self.is_fetching_online && !self.is_testing,
+                                                        update_verify_btn,
+                                                    )
+                                                    .on_hover_text(
+                                                        "Fetch all enabled subscriptions in parallel and immediately verify all nodes",
+                                                    )
+                                                    .clicked()
+                                                {
+                                                    self.trigger_subscription_update(true);
+                                                }
+
+                                                let update_btn = egui::Button::new(
+                                                    RichText::new(if self.is_fetching_online {
+                                                        "Updating Subs..."
+                                                    } else {
+                                                        "Update Subscriptions"
+                                                    })
+                                                    .strong()
+                                                    .color(Color32::from_rgb(9, 14, 23)),
+                                                )
+                                                .fill(p.accent_cyan);
+
+                                                if ui
+                                                    .add_enabled(
+                                                        !self.is_fetching_online,
+                                                        update_btn,
+                                                    )
+                                                    .on_hover_text(
+                                                        "Fetch and decode all enabled subscriptions (Base64 & Raw)",
+                                                    )
+                                                    .clicked()
+                                                {
+                                                    self.trigger_subscription_update(false);
+                                                }
+
+                                                if ui
+                                                    .button("Reset Defaults")
+                                                    .on_hover_text("Restore default subscription list")
+                                                    .clicked()
+                                                {
+                                                    self.discovery_sources = get_default_sources();
+                                                    self.persist_config();
+                                                    self.status_msg =
+                                                        "Restored default subscriptions".to_string();
+                                                }
+                                            },
+                                        );
                                     });
+
+                                    ui.add_space(6.0);
+
+                                    // Add New Subscription Bar (just like v2rayN Subscription Settings)
+                                    egui::Frame::none()
+                                        .fill(p.bg_input)
+                                        .stroke(Stroke::new(1.0_f32, p.border))
+                                        .rounding(Rounding::same(6.0))
+                                        .inner_margin(Margin::symmetric(10.0, 8.0))
+                                        .show(ui, |ui| {
+                                            ui.horizontal(|ui| {
+                                                ui.label(
+                                                    RichText::new("Add Sub:")
+                                                        .strong()
+                                                        .color(p.accent_cyan),
+                                                );
+                                                ui.add(
+                                                    egui::TextEdit::singleline(
+                                                        &mut self.new_sub_name,
+                                                    )
+                                                    .hint_text("Remark / Name (e.g. My V2Ray Sub)")
+                                                    .desired_width(170.0),
+                                                );
+                                                ui.add(
+                                                    egui::TextEdit::singleline(
+                                                        &mut self.custom_source_url,
+                                                    )
+                                                    .font(TextStyle::Monospace)
+                                                    .hint_text(
+                                                        "https://... (Base64 / Raw subscription URL) or @TelegramChannel",
+                                                    )
+                                                    .desired_width(
+                                                        (ui.available_width() - 210.0).max(200.0),
+                                                    ),
+                                                );
+
+                                                if ui.button("Paste URL").clicked() {
+                                                    if let Some(clip) = self.paste_from_clipboard()
+                                                    {
+                                                        self.custom_source_url =
+                                                            clip.trim().to_string();
+                                                    }
+                                                }
+
+                                                let add_btn = egui::Button::new(
+                                                    RichText::new("+ Add Subscription")
+                                                        .strong()
+                                                        .color(Color32::from_rgb(9, 14, 23)),
+                                                )
+                                                .fill(p.accent_cyan);
+
+                                                if ui.add(add_btn).clicked() {
+                                                    let target =
+                                                        self.custom_source_url.trim().to_string();
+                                                    if !target.is_empty() {
+                                                        let name = if self
+                                                            .new_sub_name
+                                                            .trim()
+                                                            .is_empty()
+                                                        {
+                                                            format!(
+                                                                "Sub #{}",
+                                                                self.discovery_sources.len() + 1
+                                                            )
+                                                        } else {
+                                                            self.new_sub_name.trim().to_string()
+                                                        };
+                                                        let stype = classify_source_target(&target);
+                                                        self.discovery_sources.push(
+                                                            DiscoverySource {
+                                                                name: name.clone(),
+                                                                source_type: stype,
+                                                                target,
+                                                                description: "Custom subscription"
+                                                                    .to_string(),
+                                                                enabled: true,
+                                                                last_count: 0,
+                                                                last_status: "Ready to update"
+                                                                    .to_string(),
+                                                            },
+                                                        );
+                                                        self.new_sub_name.clear();
+                                                        self.custom_source_url.clear();
+                                                        self.persist_config();
+                                                        self.status_msg = format!(
+                                                            "Added subscription '{name}' — click Update Subscriptions to fetch nodes"
+                                                        );
+                                                    }
+                                                }
+                                            });
+                                        });
+
+                                    ui.add_space(6.0);
+
+                                    // Scrollable Subscription List with status & delete controls
+                                    let mut sub_changed = false;
+                                    let mut remove_idx: Option<usize> = None;
+
+                                    ui.push_id("subscriptions_list_scroll", |ui| {
+                                        egui::ScrollArea::vertical()
+                                            .max_height(185.0)
+                                            .auto_shrink([false, false])
+                                            .show(ui, |ui| {
+                                                egui::Grid::new("subscriptions_manager_grid")
+                                                    .striped(true)
+                                                    .num_columns(5)
+                                                    .spacing([12.0, 6.0])
+                                                    .show(ui, |ui| {
+                                                        for (idx, source) in self
+                                                            .discovery_sources
+                                                            .iter_mut()
+                                                            .enumerate()
+                                                        {
+                                                            if ui
+                                                                .checkbox(&mut source.enabled, "")
+                                                                .changed()
+                                                            {
+                                                                sub_changed = true;
+                                                            }
+                                                            ui.label(
+                                                                RichText::new(&source.name)
+                                                                    .strong()
+                                                                    .color(if source.enabled {
+                                                                        p.text_primary
+                                                                    } else {
+                                                                        p.text_muted
+                                                                    }),
+                                                            );
+                                                            ui.label(
+                                                                RichText::new(&source.target)
+                                                                    .monospace()
+                                                                    .size(11.5)
+                                                                    .color(p.text_secondary),
+                                                            );
+
+                                                            let status_text =
+                                                                if source.last_status.is_empty() {
+                                                                    source.description.clone()
+                                                                } else {
+                                                                    source.last_status.clone()
+                                                                };
+                                                            let status_color =
+                                                                if source.last_count > 0 {
+                                                                    p.green_fg
+                                                                } else if status_text
+                                                                    .starts_with("Failed")
+                                                                {
+                                                                    p.red_fg
+                                                                } else {
+                                                                    p.text_muted
+                                                                };
+                                                            ui.label(
+                                                                RichText::new(status_text)
+                                                                    .size(11.5)
+                                                                    .strong()
+                                                                    .color(status_color),
+                                                            );
+
+                                                            if ui
+                                                                .small_button(
+                                                                    RichText::new("Remove")
+                                                                        .color(p.red_fg),
+                                                                )
+                                                                .on_hover_text(
+                                                                    "Delete this subscription",
+                                                                )
+                                                                .clicked()
+                                                            {
+                                                                remove_idx = Some(idx);
+                                                            }
+                                                            ui.end_row();
+                                                        }
+                                                    });
+                                            });
+                                    });
+
+                                    if let Some(idx) = remove_idx {
+                                        let removed = self.discovery_sources.remove(idx);
+                                        self.status_msg =
+                                            format!("Removed subscription '{}'", removed.name);
+                                        sub_changed = true;
+                                    }
+                                    if sub_changed {
+                                        self.persist_config();
+                                    }
                                 }
                             }
                         });

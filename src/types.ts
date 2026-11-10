@@ -71,6 +71,8 @@ export interface DiscoveryFeed {
   badge: string;
   enabled: boolean;
   itemCount?: number;
+  lastUpdated?: string;
+  lastStatus?: string;
 }
 
 export interface RustSourceFile {

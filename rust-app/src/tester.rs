@@ -1,11 +1,11 @@
 use crate::converter::{make_singbox_config, make_xray_config, uri_to_outbound, CoreEngine};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::net::{SocketAddr, TcpListener};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, LazyLock};
+use std::sync::{Arc, LazyLock, RwLock};
 use std::time::{Duration, Instant};
 use tempfile::TempDir;
 use tokio::net::TcpStream;
@@ -26,8 +26,37 @@ pub const GEMINI_API_PROBE_URL: &str =
 
 pub const GEO_CHECK_URL: &str = "https://speed.cloudflare.com/meta";
 pub const IPINFO_FALLBACK_URL: &str = "https://ipinfo.io/json";
-pub const CONNECT_TIMEOUT_SECS: u64 = 7;
-pub const HTTP_TIMEOUT_SECS: u64 = 15;
+pub const CONNECT_TIMEOUT_MS: u64 = 2500;
+pub const TCP_PREPING_TIMEOUT_MS: u64 = 2200;
+pub const DEFAULT_HTTP_TIMEOUT_SECS: u64 = 10;
+
+static SERVER_GEO_CACHE: LazyLock<RwLock<HashMap<String, String>>> =
+    LazyLock::new(|| RwLock::new(HashMap::new()));
+static DEAD_ENDPOINT_CACHE: LazyLock<RwLock<HashSet<String>>> =
+    LazyLock::new(|| RwLock::new(HashSet::new()));
+
+#[derive(Debug, Clone, Copy)]
+pub struct TestOptions {
+    pub timeout_secs: u64,
+    pub strict_region_only: bool,
+    pub check_geo_ip: bool,
+    pub check_ai_studio_web: bool,
+    pub check_gemini_api: bool,
+    pub pre_ping_tcp: bool,
+}
+
+impl Default for TestOptions {
+    fn default() -> Self {
+        Self {
+            timeout_secs: DEFAULT_HTTP_TIMEOUT_SECS,
+            strict_region_only: true,
+            check_geo_ip: true,
+            check_ai_studio_web: true,
+            check_gemini_api: true,
+            pre_ping_tcp: true,
+        }
+    }
+}
 
 // Officially supported Google AI Studio countries (ISO 3166-1 alpha-2)
 static SUPPORTED_REGIONS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
@@ -415,14 +444,14 @@ async fn wait_for_port(port: u16, timeout: Duration) -> bool {
     };
     let start = Instant::now();
     while start.elapsed() < timeout {
-        if tokio::time::timeout(Duration::from_millis(150), TcpStream::connect(&addr))
+        if tokio::time::timeout(Duration::from_millis(80), TcpStream::connect(&addr))
             .await
             .map(|r| r.is_ok())
             .unwrap_or(false)
         {
             return true;
         }
-        tokio::time::sleep(Duration::from_millis(80)).await;
+        tokio::time::sleep(Duration::from_millis(25)).await;
     }
     false
 }
@@ -488,28 +517,89 @@ pub fn check_gemini_api_location_gate(status_code: u16, body: &str) -> Result<()
     Ok(())
 }
 
-pub async fn run_single_test(
+/// Concurrent multi-source GeoIP resolver with server-level caching
+async fn resolve_egress_country(client: &reqwest::Client, server_key: &str) -> Option<String> {
+    if !server_key.is_empty() {
+        if let Ok(cache) = SERVER_GEO_CACHE.read() {
+            if let Some(cached) = cache.get(server_key) {
+                return Some(cached.clone());
+            }
+        }
+    }
+
+    // Race Cloudflare and IP.sb concurrently first for minimal latency
+    let cf_fut = async {
+        let resp = tokio::time::timeout(
+            Duration::from_millis(3800),
+            client.get(GEO_CHECK_URL).send(),
+        )
+        .await
+        .ok()?
+        .ok()?;
+        let meta = resp.json::<CloudflareMeta>().await.ok()?;
+        meta.country
+    };
+
+    let ipsb_fut = async {
+        let resp = tokio::time::timeout(
+            Duration::from_millis(3800),
+            client.get("https://api.ip.sb/geoip").send(),
+        )
+        .await
+        .ok()?
+        .ok()?;
+        let meta = resp.json::<IpSbMeta>().await.ok()?;
+        meta.country_code
+    };
+
+    let (cf_res, ipsb_res) = tokio::join!(cf_fut, ipsb_fut);
+    let mut country = cf_res.or(ipsb_res);
+
+    if country.is_none() {
+        if let Ok(Ok(resp)) = tokio::time::timeout(
+            Duration::from_millis(3500),
+            client.get(IPINFO_FALLBACK_URL).send(),
+        )
+        .await
+        {
+            if let Ok(meta) = resp.json::<IpInfoMeta>().await {
+                country = meta.country;
+            }
+        }
+    }
+
+    if country.is_none() {
+        if let Ok(Ok(resp)) = tokio::time::timeout(
+            Duration::from_millis(3000),
+            client.get("http://ip-api.com/json").send(),
+        )
+        .await
+        {
+            if let Ok(meta) = resp.json::<IpApiMeta>().await {
+                country = meta.countryCode;
+            }
+        }
+    }
+
+    if let Some(ref c) = country {
+        if !server_key.is_empty() {
+            if let Ok(mut cache) = SERVER_GEO_CACHE.write() {
+                cache.insert(server_key.to_string(), c.clone());
+            }
+        }
+    }
+
+    country
+}
+
+pub async fn run_single_test_with_opts(
     index: usize,
     config_text: &str,
     xray_path: Option<&Path>,
     singbox_path: Option<&Path>,
+    opts: TestOptions,
 ) -> TestResult {
-    let temp_dir = match TempDir::new() {
-        Ok(d) => d,
-        Err(e) => {
-            return TestResult {
-                index,
-                name: format!("Config {index}"),
-                config: config_text.to_string(),
-                country_code: None,
-                is_supported_region: false,
-                delay_ms: None,
-                status: TestStatus::Failed,
-                detail: format!("Temp dir error: {e}"),
-            }
-        }
-    };
-
+    // 1. Parse URI first BEFORE creating TempDir or spawning any OS process
     let parsed = match uri_to_outbound(config_text, "proxy") {
         Ok(p) => p,
         Err(e) => {
@@ -526,6 +616,94 @@ pub async fn run_single_test(
         }
     };
 
+    let parsed_server = parsed
+        .outbound
+        .get("server")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let parsed_port = parsed
+        .outbound
+        .get("server_port")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(443) as u16;
+    let parsed_sni = parsed
+        .outbound
+        .pointer("/tls/server_name")
+        .or_else(|| parsed.outbound.pointer("/transport/headers/Host"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    // 2. Zero-Spawn Pre-Filter: Reject explicitly blocked regions (IR, RU, CN, etc.) in 0ms!
+    let pre_meta = detect_region_from_metadata(&parsed.name, &parsed_server, &parsed_sni);
+    let (pre_country, pre_is_blocked) = match pre_meta {
+        Some((ref c, false)) => (Some(c.clone()), true),
+        Some((ref c, true)) => (Some(c.clone()), false),
+        None => (None, false),
+    };
+
+    if pre_is_blocked && opts.strict_region_only {
+        let country_tag = pre_country.clone().unwrap_or_else(|| "Blocked".to_string());
+        return TestResult {
+            index,
+            name: parsed.name,
+            config: config_text.to_string(),
+            country_code: pre_country,
+            is_supported_region: false,
+            delay_ms: None,
+            status: TestStatus::RegionBlocked,
+            detail: format!("Blocked region [{country_tag}] declared in server remark/host/SNI"),
+        };
+    }
+
+    // 3. Fast Pre-Spawn TCP Reachability Check for TCP-based protocols (eliminates dead nodes in <2s without process spawn)
+    if opts.pre_ping_tcp
+        && parsed.engine == CoreEngine::Xray
+        && !parsed_server.is_empty()
+        && parsed_port > 0
+    {
+        let endpoint_key = format!("{parsed_server}:{parsed_port}");
+        if let Ok(dead_set) = DEAD_ENDPOINT_CACHE.read() {
+            if dead_set.contains(&endpoint_key) {
+                return TestResult {
+                    index,
+                    name: parsed.name,
+                    config: config_text.to_string(),
+                    country_code: pre_country,
+                    is_supported_region: false,
+                    delay_ms: None,
+                    status: TestStatus::Failed,
+                    detail: format!("Server {endpoint_key} unreachable (cached dead endpoint)"),
+                };
+            }
+        }
+
+        let tcp_ok = tokio::time::timeout(
+            Duration::from_millis(TCP_PREPING_TIMEOUT_MS),
+            TcpStream::connect((parsed_server.as_str(), parsed_port)),
+        )
+        .await
+        .map(|r| r.is_ok())
+        .unwrap_or(false);
+
+        if !tcp_ok {
+            if let Ok(mut dead_set) = DEAD_ENDPOINT_CACHE.write() {
+                dead_set.insert(endpoint_key.clone());
+            }
+            return TestResult {
+                index,
+                name: parsed.name,
+                config: config_text.to_string(),
+                country_code: pre_country,
+                is_supported_region: false,
+                delay_ms: None,
+                status: TestStatus::Failed,
+                detail: format!("Server {endpoint_key} TCP handshake timed out"),
+            };
+        }
+    }
+
     let core_path = match parsed.engine {
         CoreEngine::SingBox => singbox_path,
         CoreEngine::Xray => xray_path.or(singbox_path),
@@ -538,11 +716,27 @@ pub async fn run_single_test(
                 index,
                 name: parsed.name,
                 config: config_text.to_string(),
-                country_code: None,
+                country_code: pre_country,
                 is_supported_region: false,
                 delay_ms: None,
                 status: TestStatus::Failed,
                 detail: "Core binary missing — open Settings (⚙) to auto-install".to_string(),
+            }
+        }
+    };
+
+    let temp_dir = match TempDir::new() {
+        Ok(d) => d,
+        Err(e) => {
+            return TestResult {
+                index,
+                name: parsed.name,
+                config: config_text.to_string(),
+                country_code: pre_country,
+                is_supported_region: false,
+                delay_ms: None,
+                status: TestStatus::Failed,
+                detail: format!("Temp dir error: {e}"),
             }
         }
     };
@@ -554,7 +748,7 @@ pub async fn run_single_test(
                 index,
                 name: parsed.name,
                 config: config_text.to_string(),
-                country_code: None,
+                country_code: pre_country,
                 is_supported_region: false,
                 delay_ms: None,
                 status: TestStatus::Failed,
@@ -582,7 +776,7 @@ pub async fn run_single_test(
                     index,
                     name: parsed.name,
                     config: config_text.to_string(),
-                    country_code: None,
+                    country_code: pre_country,
                     is_supported_region: false,
                     delay_ms: None,
                     status: TestStatus::Failed,
@@ -597,7 +791,7 @@ pub async fn run_single_test(
             index,
             name: parsed.name,
             config: config_text.to_string(),
-            country_code: None,
+            country_code: pre_country,
             is_supported_region: false,
             delay_ms: None,
             status: TestStatus::Failed,
@@ -624,7 +818,7 @@ pub async fn run_single_test(
                 index,
                 name: parsed.name,
                 config: config_text.to_string(),
-                country_code: None,
+                country_code: pre_country,
                 is_supported_region: false,
                 delay_ms: None,
                 status: TestStatus::Failed,
@@ -633,197 +827,169 @@ pub async fn run_single_test(
         }
     };
 
-    if !wait_for_port(port, Duration::from_secs(CONNECT_TIMEOUT_SECS)).await {
+    if !wait_for_port(port, Duration::from_millis(CONNECT_TIMEOUT_MS)).await {
         let _ = child.kill().await;
         return TestResult {
             index,
             name: parsed.name,
             config: config_text.to_string(),
-            country_code: None,
+            country_code: pre_country,
             is_supported_region: false,
             delay_ms: None,
             status: TestStatus::Failed,
-            detail: "Local proxy port timed out".to_string(),
+            detail: "Local proxy core failed to bind port".to_string(),
         };
     }
 
-    let parsed_server = parsed
-        .outbound
-        .get("server")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
-    let parsed_sni = parsed
-        .outbound
-        .pointer("/tls/server_name")
-        .or_else(|| parsed.outbound.pointer("/transport/headers/Host"))
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
-
-    let pre_meta = detect_region_from_metadata(&parsed.name, &parsed_server, &parsed_sni);
-    let (pre_country, pre_is_blocked) = match pre_meta {
-        Some((ref c, false)) => (Some(c.clone()), true),
-        Some((ref c, true)) => (Some(c.clone()), false),
-        None => (None, false),
-    };
-
     let proxy_url = format!("http://127.0.0.1:{port}");
+    let http_timeout = Duration::from_secs(opts.timeout_secs.clamp(3, 60));
+
     let test_res = async {
         let proxy = reqwest::Proxy::all(&proxy_url).map_err(|e| e.to_string())?;
         let client = reqwest::Client::builder()
             .proxy(proxy)
-            .timeout(Duration::from_secs(HTTP_TIMEOUT_SECS))
+            .timeout(http_timeout)
+            .pool_max_idle_per_host(4)
             .user_agent(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
             )
             .build()
             .map_err(|e| e.to_string())?;
 
-        // Fast-path: If the config remark explicitly declares a blocked region (Iran, Russia, China, etc.),
-        // flag it immediately as RegionBlocked without allowing it to slip into Verified!
-        if pre_is_blocked {
-            let country_tag = pre_country.clone().unwrap_or_else(|| "Blocked".to_string());
-            return Ok((
-                pre_country,
-                false,
-                None,
-                TestStatus::RegionBlocked,
-                format!("Blocked region [{country_tag}] declared in server remark/host/SNI"),
-            ));
-        }
-
-        // Stage 1: Multi-source Egress Country Check (Cloudflare, IP.sb, IPInfo, IP-API)
-        let mut detected_country: Option<String> = None;
-        if let Ok(geo_resp) = client.get(GEO_CHECK_URL).send().await {
-            if let Ok(meta) = geo_resp.json::<CloudflareMeta>().await {
-                detected_country = meta.country;
+        // Run Stage 1 (GeoIP), Stage 2 (AI Studio Web Redirect Check), and Stage 3 (Gemini API Gate) CONCURRENTLY!
+        let geo_fut = async {
+            if opts.check_geo_ip {
+                resolve_egress_country(&client, &parsed_server).await
+            } else {
+                None
             }
-        }
-        if detected_country.is_none() {
-            if let Ok(sb_resp) = client.get("https://api.ip.sb/geoip").send().await {
-                if let Ok(meta) = sb_resp.json::<IpSbMeta>().await {
-                    detected_country = meta.country_code;
-                }
-            }
-        }
-        if detected_country.is_none() {
-            if let Ok(resp) = client.get(IPINFO_FALLBACK_URL).send().await {
-                if let Ok(meta) = resp.json::<IpInfoMeta>().await {
-                    detected_country = meta.country;
-                }
-            }
-        }
-        if detected_country.is_none() {
-            if let Ok(api_resp) = client.get("http://ip-api.com/json").send().await {
-                if let Ok(meta) = api_resp.json::<IpApiMeta>().await {
-                    detected_country = meta.countryCode;
-                }
-            }
-        }
-
-        let is_supported = match &detected_country {
-            Some(c) => is_country_supported(c),
-            None => pre_country.as_deref().map(is_country_supported).unwrap_or(true),
         };
 
-        if let Some(c) = &detected_country {
+        let web_fut = async {
+            let start = Instant::now();
+            if !opts.check_ai_studio_web {
+                return Ok((200u16, String::new(), String::new(), 0u64));
+            }
+            let web_resp = match client.get(AI_STUDIO_APP_URL).send().await {
+                Ok(r) => r,
+                Err(_) => client
+                    .get(AI_STUDIO_ROOT_URL)
+                    .send()
+                    .await
+                    .map_err(|e| format!("AI Studio connection failed: {e}"))?,
+            };
+            let latency_ms = start.elapsed().as_millis() as u64;
+            let status_code = web_resp.status().as_u16();
+            let final_url = web_resp.url().to_string();
+            let body_text = web_resp.text().await.unwrap_or_default().to_lowercase();
+            Ok::<(u16, String, String, u64), String>((status_code, final_url, body_text, latency_ms))
+        };
+
+        let api_fut = async {
+            if !opts.check_gemini_api {
+                return Ok((200u16, String::new(), 0u64));
+            }
+            let start = Instant::now();
+            let api_resp = client
+                .get(GEMINI_API_PROBE_URL)
+                .send()
+                .await
+                .map_err(|e| format!("Gemini API unreachable: {e}"))?;
+            let latency_ms = start.elapsed().as_millis() as u64;
+            let code = api_resp.status().as_u16();
+            let api_body = api_resp.text().await.unwrap_or_default();
+            Ok::<(u16, String, u64), String>((code, api_body, latency_ms))
+        };
+
+        let (detected_country, web_result, api_result) = tokio::join!(geo_fut, web_fut, api_fut);
+        let final_country = detected_country.or(pre_country);
+
+        // Evaluate Stage 1: GeoIP
+        if let Some(ref c) = final_country {
             if !is_country_supported(c) {
-                let detail = format!("Unsupported egress country [{c}] detected via GeoIP probe");
                 return Ok((
-                    detected_country,
+                    final_country.clone(),
                     false,
                     None,
                     TestStatus::RegionBlocked,
-                    detail,
+                    format!("Unsupported egress country [{c}] detected via GeoIP"),
                 ));
             }
         }
 
-        // Stage 2: Probe AI Studio App URL & Detect Redirect to `available-regions` Documentation
-        let start = Instant::now();
-        let web_resp = match client.get(AI_STUDIO_APP_URL).send().await {
-            Ok(r) => r,
-            Err(_) => client
-                .get(AI_STUDIO_ROOT_URL)
-                .send()
-                .await
-                .map_err(|e| format!("AI Studio connection failed: {e}"))?,
+        // Evaluate Stage 2: AI Studio Web & Docs Redirect
+        let (web_status, final_url, body_text, web_latency) = match web_result {
+            Ok(t) => t,
+            Err(err_msg) => {
+                // If both Web and API failed to connect, proxy tunnel itself is dead
+                return Err(err_msg);
+            }
         };
-        let latency_ms = start.elapsed().as_millis() as u64;
-        let status = web_resp.status();
-        let final_url = web_resp.url().to_string();
 
-        // HTTP 403 Forbidden or 451 Unavailable For Legal Reasons from AI Studio IS a region/geoblock!
-        if status.as_u16() == 403 || status.as_u16() == 451 {
-            let detail = format!("AI Studio HTTP {} Geo-restricted IP Block", status.as_u16());
+        if web_status == 403 || web_status == 451 {
             return Ok((
-                detected_country.or(pre_country),
+                final_country,
                 false,
-                Some(latency_ms),
+                Some(web_latency),
                 TestStatus::RegionBlocked,
-                detail,
+                format!("AI Studio HTTP {web_status} Geo-restricted IP Block"),
             ));
         }
 
-        if !status.is_success() {
-            let detail = format!("AI Studio returned HTTP {}", status.as_u16());
+        if opts.check_ai_studio_web && !(200..400).contains(&web_status) {
             return Ok((
-                detected_country.or(pre_country),
-                is_supported,
-                Some(latency_ms),
+                final_country,
+                false,
+                Some(web_latency),
                 TestStatus::Failed,
-                detail,
+                format!("AI Studio returned HTTP {web_status}"),
             ));
         }
 
-        let body_text = web_resp.text().await.unwrap_or_default().to_lowercase();
-
-        if is_redirected_to_regions_doc(&final_url, &body_text) {
+        if opts.check_ai_studio_web && is_redirected_to_regions_doc(&final_url, &body_text) {
             let detail = {
-                let c_tag = detected_country
-                    .as_deref()
-                    .or(pre_country.as_deref())
-                    .unwrap_or("??");
+                let c_tag = final_country.as_deref().unwrap_or("??");
                 format!("Redirected to Available Regions Docs [{c_tag} IP flagged by Google]")
             };
             return Ok((
-                detected_country.or(pre_country),
+                final_country,
                 false,
-                Some(latency_ms),
+                Some(web_latency),
                 TestStatus::RegionBlocked,
                 detail,
             ));
         }
 
-        // Stage 3: Probe Google's Internal GeoIP Gate via Gemini API `/v1beta/models`
-        match client.get(GEMINI_API_PROBE_URL).send().await {
-            Ok(api_resp) => {
-                let code = api_resp.status().as_u16();
-                let api_body = api_resp.text().await.unwrap_or_default();
-                if let Err(region_err) = check_gemini_api_location_gate(code, &api_body) {
+        // Evaluate Stage 3: Google Gemini API Internal Location Gate
+        let mut final_latency = web_latency;
+        if opts.check_gemini_api {
+            match api_result {
+                Ok((code, api_body, api_lat)) => {
+                    if final_latency == 0 {
+                        final_latency = api_lat;
+                    }
+                    if let Err(region_err) = check_gemini_api_location_gate(code, &api_body) {
+                        return Ok((
+                            final_country,
+                            false,
+                            Some(final_latency),
+                            TestStatus::RegionBlocked,
+                            region_err,
+                        ));
+                    }
+                }
+                Err(e) => {
                     return Ok((
-                        detected_country.or(pre_country),
+                        final_country,
                         false,
-                        Some(latency_ms),
-                        TestStatus::RegionBlocked,
-                        region_err,
+                        Some(final_latency),
+                        TestStatus::ApiBlocked,
+                        format!("AI Studio loaded, but {e}"),
                     ));
                 }
             }
-            Err(e) => {
-                let detail = format!("AI Studio loaded, but Gemini API unreachable: {e}");
-                return Ok((
-                    detected_country.or(pre_country),
-                    is_supported,
-                    Some(latency_ms),
-                    TestStatus::ApiBlocked,
-                    detail,
-                ));
-            }
         }
 
-        let final_country = detected_country.or(pre_country);
         let detail = {
             let country_str = final_country.as_deref().unwrap_or("Verified");
             format!("Verified [{country_str}] · App OK (No Docs Redirect) & Google GeoIP Passed")
@@ -831,7 +997,7 @@ pub async fn run_single_test(
         Ok((
             final_country,
             true,
-            Some(latency_ms),
+            Some(final_latency),
             TestStatus::Working,
             detail,
         ))
@@ -864,18 +1030,40 @@ pub async fn run_single_test(
     }
 }
 
+pub async fn run_single_test(
+    index: usize,
+    config_text: &str,
+    xray_path: Option<&Path>,
+    singbox_path: Option<&Path>,
+) -> TestResult {
+    run_single_test_with_opts(
+        index,
+        config_text,
+        xray_path,
+        singbox_path,
+        TestOptions::default(),
+    )
+    .await
+}
+
 pub struct BatchRunner {
     pub configs: Vec<String>,
     pub xray_path: Option<PathBuf>,
     pub singbox_path: Option<PathBuf>,
     pub concurrency: usize,
     pub is_cancelled: Arc<AtomicBool>,
+    pub options: TestOptions,
 }
 
 impl BatchRunner {
     pub async fn run(self, tx: mpsc::Sender<TestResult>) {
-        let semaphore = Arc::new(Semaphore::new(self.concurrency.max(1)));
-        let mut handles = Vec::new();
+        // Clear dead endpoint cache at the start of each batch run
+        if let Ok(mut dead_set) = DEAD_ENDPOINT_CACHE.write() {
+            dead_set.clear();
+        }
+
+        let semaphore = Arc::new(Semaphore::new(self.concurrency.clamp(1, 250)));
+        let mut handles = Vec::with_capacity(self.configs.len());
 
         for (i, cfg) in self.configs.into_iter().enumerate() {
             if self.is_cancelled.load(Ordering::Relaxed) {
@@ -889,13 +1077,21 @@ impl BatchRunner {
             let xray = self.xray_path.clone();
             let singbox = self.singbox_path.clone();
             let cancel = self.is_cancelled.clone();
+            let opts = self.options;
 
             let handle = tokio::spawn(async move {
                 let _permit = permit;
                 if cancel.load(Ordering::Relaxed) {
                     return;
                 }
-                let res = run_single_test(i + 1, &cfg, xray.as_deref(), singbox.as_deref()).await;
+                let res = run_single_test_with_opts(
+                    i + 1,
+                    &cfg,
+                    xray.as_deref(),
+                    singbox.as_deref(),
+                    opts,
+                )
+                .await;
                 let _ = tx_clone.send(res).await;
             });
 
