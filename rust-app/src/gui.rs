@@ -205,22 +205,22 @@ impl VpnCheckerApp {
         visuals.extreme_bg_color = p.bg_input;
         visuals.faint_bg_color = p.bg_secondary;
         visuals.window_rounding = Rounding::same(10.0);
-        visuals.window_stroke = Stroke::new(1.0, p.border);
+        visuals.window_stroke = Stroke::new(1.0_f32, p.border);
         visuals.selection.bg_fill = p.accent_cyan.gamma_multiply(0.18);
-        visuals.selection.stroke = Stroke::new(1.0, p.accent_cyan);
+        visuals.selection.stroke = Stroke::new(1.0_f32, p.accent_cyan);
         visuals.widgets.noninteractive.bg_fill = p.bg_card;
-        visuals.widgets.noninteractive.bg_stroke = Stroke::new(1.0, p.border);
-        visuals.widgets.noninteractive.fg_stroke = Stroke::new(1.0, p.text_primary);
+        visuals.widgets.noninteractive.bg_stroke = Stroke::new(1.0_f32, p.border);
+        visuals.widgets.noninteractive.fg_stroke = Stroke::new(1.0_f32, p.text_primary);
         visuals.widgets.noninteractive.rounding = Rounding::same(6.0);
         visuals.widgets.inactive.bg_fill = p.bg_subtle;
-        visuals.widgets.inactive.bg_stroke = Stroke::new(1.0, p.border);
-        visuals.widgets.inactive.fg_stroke = Stroke::new(1.0, p.text_primary);
+        visuals.widgets.inactive.bg_stroke = Stroke::new(1.0_f32, p.border);
+        visuals.widgets.inactive.fg_stroke = Stroke::new(1.0_f32, p.text_primary);
         visuals.widgets.inactive.rounding = Rounding::same(6.0);
         visuals.widgets.hovered.bg_fill = Color32::from_rgb(33, 50, 72);
-        visuals.widgets.hovered.bg_stroke = Stroke::new(1.0, p.accent_cyan);
+        visuals.widgets.hovered.bg_stroke = Stroke::new(1.0_f32, p.accent_cyan);
         visuals.widgets.hovered.rounding = Rounding::same(6.0);
         visuals.widgets.active.bg_fill = p.accent_cyan.gamma_multiply(0.25);
-        visuals.widgets.active.bg_stroke = Stroke::new(1.0, p.accent_cyan);
+        visuals.widgets.active.bg_stroke = Stroke::new(1.0_f32, p.accent_cyan);
         visuals.widgets.active.rounding = Rounding::same(6.0);
         ctx.set_visuals(visuals);
     }
@@ -272,7 +272,7 @@ impl VpnCheckerApp {
 fn draw_badge(ui: &mut egui::Ui, text: &str, fg: Color32, bg: Color32) {
     egui::Frame::none()
         .fill(bg)
-        .stroke(Stroke::new(1.0, fg.gamma_multiply(0.45)))
+        .stroke(Stroke::new(1.0_f32, fg.gamma_multiply(0.45)))
         .rounding(Rounding::same(5.0))
         .inner_margin(Margin::symmetric(8.0, 3.0))
         .show(ui, |ui| {
@@ -356,7 +356,7 @@ impl eframe::App for VpnCheckerApp {
                     // Portable config path box
                     egui::Frame::none()
                         .fill(p.bg_input)
-                        .stroke(Stroke::new(1.0, p.border))
+                        .stroke(Stroke::new(1.0_f32, p.border))
                         .rounding(Rounding::same(6.0))
                         .inner_margin(Margin::symmetric(12.0, 8.0))
                         .show(ui, |ui| {
@@ -501,7 +501,7 @@ impl eframe::App for VpnCheckerApp {
                     ] {
                         egui::Frame::none()
                             .fill(p.bg_input)
-                            .stroke(Stroke::new(1.0, p.border))
+                            .stroke(Stroke::new(1.0_f32, p.border))
                             .rounding(Rounding::same(6.0))
                             .inner_margin(Margin::symmetric(10.0, 8.0))
                             .show(ui, |ui| {
@@ -670,7 +670,7 @@ impl eframe::App for VpnCheckerApp {
             .frame(
                 egui::Frame::none()
                     .fill(p.bg_secondary)
-                    .stroke(Stroke::new(1.0, p.border))
+                    .stroke(Stroke::new(1.0_f32, p.border))
                     .inner_margin(Margin::symmetric(18.0, 10.0)),
             )
             .show(ctx, |ui| {
@@ -796,7 +796,7 @@ impl eframe::App for VpnCheckerApp {
             .frame(
                 egui::Frame::none()
                     .fill(p.bg_secondary)
-                    .stroke(Stroke::new(1.0, p.border))
+                    .stroke(Stroke::new(1.0_f32, p.border))
                     .inner_margin(Margin::symmetric(18.0, 6.0)),
             )
             .show(ctx, |ui| {
@@ -840,7 +840,7 @@ impl eframe::App for VpnCheckerApp {
                     .frame(
                         egui::Frame::none()
                             .fill(p.bg_card)
-                            .stroke(Stroke::new(1.0, p.border))
+                            .stroke(Stroke::new(1.0_f32, p.border))
                             .inner_margin(Margin::symmetric(18.0, 10.0)),
                     )
                     .show(ctx, |ui| {
@@ -902,7 +902,7 @@ impl eframe::App for VpnCheckerApp {
                     // Card 1: Queue
                     egui::Frame::none()
                         .fill(p.bg_card)
-                        .stroke(Stroke::new(1.0, p.border))
+                        .stroke(Stroke::new(1.0_f32, p.border))
                         .rounding(Rounding::same(8.0))
                         .inner_margin(Margin::symmetric(14.0, 10.0))
                         .show(&mut cols[0], |ui| {
@@ -934,7 +934,7 @@ impl eframe::App for VpnCheckerApp {
                     // Card 2: Verified
                     egui::Frame::none()
                         .fill(p.bg_card)
-                        .stroke(Stroke::new(1.0, p.border))
+                        .stroke(Stroke::new(1.0_f32, p.border))
                         .rounding(Rounding::same(8.0))
                         .inner_margin(Margin::symmetric(14.0, 10.0))
                         .show(&mut cols[1], |ui| {
@@ -963,7 +963,7 @@ impl eframe::App for VpnCheckerApp {
                     // Card 3: Region / Docs Redirect Blocked
                     egui::Frame::none()
                         .fill(p.bg_card)
-                        .stroke(Stroke::new(1.0, p.border))
+                        .stroke(Stroke::new(1.0_f32, p.border))
                         .rounding(Rounding::same(8.0))
                         .inner_margin(Margin::symmetric(14.0, 10.0))
                         .show(&mut cols[2], |ui| {
@@ -992,7 +992,7 @@ impl eframe::App for VpnCheckerApp {
                     // Card 4: Failed / Timeout
                     egui::Frame::none()
                         .fill(p.bg_card)
-                        .stroke(Stroke::new(1.0, p.border))
+                        .stroke(Stroke::new(1.0_f32, p.border))
                         .rounding(Rounding::same(8.0))
                         .inner_margin(Margin::symmetric(14.0, 10.0))
                         .show(&mut cols[3], |ui| {
@@ -1025,7 +1025,7 @@ impl eframe::App for VpnCheckerApp {
                 if !self.input_collapsed {
                     egui::Frame::none()
                         .fill(p.bg_card)
-                        .stroke(Stroke::new(1.0, p.border))
+                        .stroke(Stroke::new(1.0_f32, p.border))
                         .rounding(Rounding::same(8.0))
                         .inner_margin(Margin::symmetric(14.0, 12.0))
                         .show(ui, |ui| {
@@ -1277,7 +1277,7 @@ impl eframe::App for VpnCheckerApp {
                 // 4. Filter & Action Toolbar (Structured in a Card Frame with zero overlapping text)
                 egui::Frame::none()
                     .fill(p.bg_card)
-                    .stroke(Stroke::new(1.0, p.border))
+                    .stroke(Stroke::new(1.0_f32, p.border))
                     .rounding(Rounding::same(8.0))
                     .inner_margin(Margin::symmetric(12.0, 8.0))
                     .show(ui, |ui| {
@@ -1421,7 +1421,7 @@ impl eframe::App for VpnCheckerApp {
 
                 egui::Frame::none()
                     .fill(p.bg_card)
-                    .stroke(Stroke::new(1.0, p.border))
+                    .stroke(Stroke::new(1.0_f32, p.border))
                     .rounding(Rounding::same(8.0))
                     .inner_margin(Margin::symmetric(12.0, 10.0))
                     .show(ui, |ui| {

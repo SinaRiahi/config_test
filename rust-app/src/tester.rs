@@ -146,25 +146,25 @@ pub fn detect_region_from_metadata(name: &str, server: &str, sni: &str) -> Optio
 
     // 1. Explicit Blocked Territories First (Flags, spaced letters, keywords, ISPs, cities, TLDs)
     // Flags
-    if combined.contains('🇮🇷') {
+    if combined.contains("🇮🇷") {
         return Some(("IR".to_string(), false));
     }
-    if combined.contains('🇷🇺') {
+    if combined.contains("🇷🇺") {
         return Some(("RU".to_string(), false));
     }
-    if combined.contains('🇨🇳') || combined.contains('🇭🇰') || combined.contains('🇲🇴') {
+    if combined.contains("🇨🇳") || combined.contains("🇭🇰") || combined.contains("🇲🇴") {
         return Some(("CN".to_string(), false));
     }
-    if combined.contains('🇧🇾') {
+    if combined.contains("🇧🇾") {
         return Some(("BY".to_string(), false));
     }
-    if combined.contains('🇨🇺') {
+    if combined.contains("🇨🇺") {
         return Some(("CU".to_string(), false));
     }
-    if combined.contains('🇰🇵') {
+    if combined.contains("🇰🇵") {
         return Some(("KP".to_string(), false));
     }
-    if combined.contains('🇸🇾') {
+    if combined.contains("🇸🇾") {
         return Some(("SY".to_string(), false));
     }
 
@@ -279,7 +279,7 @@ pub fn detect_region_from_metadata(name: &str, server: &str, sni: &str) -> Optio
 
     // 2. Supported AI Studio Regions
     // Germany
-    if combined.contains('🇩🇪')
+    if combined.contains("🇩🇪")
         || combined_lower.contains("germany")
         || combined_lower.contains("frankfurt")
         || combined_lower.contains("hetzner")
@@ -290,7 +290,7 @@ pub fn detect_region_from_metadata(name: &str, server: &str, sni: &str) -> Optio
         return Some(("DE".to_string(), true));
     }
     // United States
-    if combined.contains('🇺🇸')
+    if combined.contains("🇺🇸")
         || combined_lower.contains("united states")
         || combined_lower.contains("usa")
         || combined_lower.contains("america")
@@ -303,7 +303,7 @@ pub fn detect_region_from_metadata(name: &str, server: &str, sni: &str) -> Optio
         return Some(("US".to_string(), true));
     }
     // United Kingdom
-    if combined.contains('🇬🇧')
+    if combined.contains("🇬🇧")
         || combined_lower.contains("united kingdom")
         || combined_lower.contains("london")
         || combined_lower.contains("britain")
@@ -315,7 +315,7 @@ pub fn detect_region_from_metadata(name: &str, server: &str, sni: &str) -> Optio
         return Some(("GB".to_string(), true));
     }
     // Netherlands
-    if combined.contains('🇳🇱')
+    if combined.contains("🇳🇱")
         || combined_lower.contains("netherlands")
         || combined_lower.contains("amsterdam")
         || has_iso2_marker(&combined, "NL")
@@ -324,7 +324,7 @@ pub fn detect_region_from_metadata(name: &str, server: &str, sni: &str) -> Optio
         return Some(("NL".to_string(), true));
     }
     // France
-    if combined.contains('🇫🇷')
+    if combined.contains("🇫🇷")
         || combined_lower.contains("france")
         || combined_lower.contains("paris")
         || combined_lower.contains("ovh")
@@ -334,7 +334,7 @@ pub fn detect_region_from_metadata(name: &str, server: &str, sni: &str) -> Optio
         return Some(("FR".to_string(), true));
     }
     // Singapore
-    if combined.contains('🇸🇬')
+    if combined.contains("🇸🇬")
         || combined_lower.contains("singapore")
         || has_iso2_marker(&combined, "SG")
         || has_spaced_marker(&combined, "S", "G")
@@ -342,7 +342,7 @@ pub fn detect_region_from_metadata(name: &str, server: &str, sni: &str) -> Optio
         return Some(("SG".to_string(), true));
     }
     // Japan
-    if combined.contains('🇯🇵')
+    if combined.contains("🇯🇵")
         || combined_lower.contains("japan")
         || combined_lower.contains("tokyo")
         || combined_lower.contains("osaka")
@@ -352,7 +352,7 @@ pub fn detect_region_from_metadata(name: &str, server: &str, sni: &str) -> Optio
         return Some(("JP".to_string(), true));
     }
     // Turkey
-    if combined.contains('🇹🇷')
+    if combined.contains("🇹🇷")
         || combined_lower.contains("turkey")
         || combined_lower.contains("turkiye")
         || combined_lower.contains("istanbul")
@@ -362,7 +362,7 @@ pub fn detect_region_from_metadata(name: &str, server: &str, sni: &str) -> Optio
         return Some(("TR".to_string(), true));
     }
     // Finland
-    if combined.contains('🇫🇮')
+    if combined.contains("🇫🇮")
         || combined_lower.contains("finland")
         || combined_lower.contains("helsinki")
         || has_iso2_marker(&combined, "FI")
@@ -371,7 +371,7 @@ pub fn detect_region_from_metadata(name: &str, server: &str, sni: &str) -> Optio
         return Some(("FI".to_string(), true));
     }
     // Sweden
-    if combined.contains('🇸🇪')
+    if combined.contains("🇸🇪")
         || combined_lower.contains("sweden")
         || combined_lower.contains("stockholm")
         || has_iso2_marker(&combined, "SE")
@@ -380,7 +380,7 @@ pub fn detect_region_from_metadata(name: &str, server: &str, sni: &str) -> Optio
         return Some(("SE".to_string(), true));
     }
     // Canada
-    if combined.contains('🇨🇦')
+    if combined.contains("🇨🇦")
         || combined_lower.contains("canada")
         || combined_lower.contains("toronto")
         || has_iso2_marker(&combined, "CA")
@@ -389,7 +389,7 @@ pub fn detect_region_from_metadata(name: &str, server: &str, sni: &str) -> Optio
         return Some(("CA".to_string(), true));
     }
     // South Korea
-    if combined.contains('🇰🇷')
+    if combined.contains("🇰🇷")
         || combined_lower.contains("korea")
         || combined_lower.contains("seoul")
         || has_iso2_marker(&combined, "KR")

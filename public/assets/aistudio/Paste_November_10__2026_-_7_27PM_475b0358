@@ -1,0 +1,899 @@
+Run cargo check --target x86_64-pc-windows-msvc
+    Updating crates.io index
+     Locking 401 packages to highest compatible versions
+      Adding base64 v0.22.1 (available: v0.23.1)
+      Adding eframe v0.29.1 (available: v0.37.0)
+      Adding reqwest v0.12.28 (available: v0.13.5)
+      Adding rfd v0.15.4 (available: v0.18.0)
+      Adding zip v2.6.1 (available: v9.5.0)
+   Compiling vpn-config-checker v0.2.0 (D:\a\config_test\config_test\rust-app)
+error: character literal may only contain one codepoint
+   --> src\tester.rs:149:26
+    |
+149 |     if combined.contains('🇮🇷') {
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+149 -     if combined.contains('🇮🇷') {
+149 +     if combined.contains("🇮🇷") {
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:152:26
+    |
+152 |     if combined.contains('🇷🇺') {
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+152 -     if combined.contains('🇷🇺') {
+152 +     if combined.contains("🇷🇺") {
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:155:26
+    |
+155 |     if combined.contains('🇨🇳') || combined.contains('🇭🇰') || combined.contains('🇲🇴') {
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+155 -     if combined.contains('🇨🇳') || combined.contains('🇭🇰') || combined.contains('🇲🇴') {
+155 +     if combined.contains("🇨🇳") || combined.contains('🇭🇰') || combined.contains('🇲🇴') {
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:155:53
+    |
+155 |     if combined.contains('🇨🇳') || combined.contains('🇭🇰') || combined.contains('🇲🇴') {
+    |                                                     ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+155 -     if combined.contains('🇨🇳') || combined.contains('🇭🇰') || combined.contains('🇲🇴') {
+155 +     if combined.contains('🇨🇳') || combined.contains("🇭🇰") || combined.contains('🇲🇴') {
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:155:80
+    |
+155 |     if combined.contains('🇨🇳') || combined.contains('🇭🇰') || combined.contains('🇲🇴') {
+    |                                                                                ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+155 -     if combined.contains('🇨🇳') || combined.contains('🇭🇰') || combined.contains('🇲🇴') {
+155 +     if combined.contains('🇨🇳') || combined.contains('🇭🇰') || combined.contains("🇲🇴") {
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:158:26
+    |
+158 |     if combined.contains('🇧🇾') {
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+158 -     if combined.contains('🇧🇾') {
+158 +     if combined.contains("🇧🇾") {
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:161:26
+    |
+161 |     if combined.contains('🇨🇺') {
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+161 -     if combined.contains('🇨🇺') {
+161 +     if combined.contains("🇨🇺") {
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:164:26
+    |
+164 |     if combined.contains('🇰🇵') {
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+164 -     if combined.contains('🇰🇵') {
+164 +     if combined.contains("🇰🇵") {
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:167:26
+    |
+167 |     if combined.contains('🇸🇾') {
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+167 -     if combined.contains('🇸🇾') {
+167 +     if combined.contains("🇸🇾") {
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:282:26
+    |
+282 |     if combined.contains('🇩🇪')
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+282 -     if combined.contains('🇩🇪')
+282 +     if combined.contains("🇩🇪")
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:293:26
+    |
+293 |     if combined.contains('🇺🇸')
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+293 -     if combined.contains('🇺🇸')
+293 +     if combined.contains("🇺🇸")
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:306:26
+    |
+306 |     if combined.contains('🇬🇧')
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+306 -     if combined.contains('🇬🇧')
+306 +     if combined.contains("🇬🇧")
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:318:26
+    |
+318 |     if combined.contains('🇳🇱')
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+318 -     if combined.contains('🇳🇱')
+318 +     if combined.contains("🇳🇱")
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:327:26
+    |
+327 |     if combined.contains('🇫🇷')
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+327 -     if combined.contains('🇫🇷')
+327 +     if combined.contains("🇫🇷")
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:337:26
+    |
+337 |     if combined.contains('🇸🇬')
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+337 -     if combined.contains('🇸🇬')
+337 +     if combined.contains("🇸🇬")
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:345:26
+    |
+345 |     if combined.contains('🇯🇵')
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+345 -     if combined.contains('🇯🇵')
+345 +     if combined.contains("🇯🇵")
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:355:26
+    |
+355 |     if combined.contains('🇹🇷')
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+355 -     if combined.contains('🇹🇷')
+355 +     if combined.contains("🇹🇷")
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:365:26
+    |
+365 |     if combined.contains('🇫🇮')
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+365 -     if combined.contains('🇫🇮')
+365 +     if combined.contains("🇫🇮")
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:374:26
+    |
+374 |     if combined.contains('🇸🇪')
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+374 -     if combined.contains('🇸🇪')
+374 +     if combined.contains("🇸🇪")
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:383:26
+    |
+383 |     if combined.contains('🇨🇦')
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+383 -     if combined.contains('🇨🇦')
+383 +     if combined.contains("🇨🇦")
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:392:26
+    |
+392 |     if combined.contains('🇰🇷')
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+392 -     if combined.contains('🇰🇷')
+392 +     if combined.contains("🇰🇷")
+    |
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:208:45
+    |
+208 |         visuals.window_stroke = Stroke::new(1.0, p.border);
+    |                                             ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+    = note: `#[warn(float_literal_f32_fallback)]` (part of `#[warn(future_incompatible)]`) on by default
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:210:48
+    |
+210 |         visuals.selection.stroke = Stroke::new(1.0, p.accent_cyan);
+    |                                                ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:212:64
+    |
+212 |         visuals.widgets.noninteractive.bg_stroke = Stroke::new(1.0, p.border);
+    |                                                                ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:213:64
+    |
+213 |         visuals.widgets.noninteractive.fg_stroke = Stroke::new(1.0, p.text_primary);
+    |                                                                ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:216:58
+    |
+216 |         visuals.widgets.inactive.bg_stroke = Stroke::new(1.0, p.border);
+    |                                                          ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:217:58
+    |
+217 |         visuals.widgets.inactive.fg_stroke = Stroke::new(1.0, p.text_primary);
+    |                                                          ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:220:57
+    |
+220 |         visuals.widgets.hovered.bg_stroke = Stroke::new(1.0, p.accent_cyan);
+    |                                                         ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:223:56
+    |
+223 |         visuals.widgets.active.bg_stroke = Stroke::new(1.0, p.accent_cyan);
+    |                                                        ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:275:29
+    |
+275 |         .stroke(Stroke::new(1.0, fg.gamma_multiply(0.45)))
+    |                             ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:359:45
+    |
+359 |                         .stroke(Stroke::new(1.0, p.border))
+    |                                             ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:504:49
+    |
+504 | ...                   .stroke(Stroke::new(1.0, p.border))
+    |                                           ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:673:41
+    |
+673 |                     .stroke(Stroke::new(1.0, p.border))
+    |                                         ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:799:41
+    |
+799 |                     .stroke(Stroke::new(1.0, p.border))
+    |                                         ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:843:49
+    |
+843 | ...                   .stroke(Stroke::new(1.0, p.border))
+    |                                           ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:905:45
+    |
+905 |                         .stroke(Stroke::new(1.0, p.border))
+    |                                             ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:937:45
+    |
+937 |                         .stroke(Stroke::new(1.0, p.border))
+    |                                             ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:966:45
+    |
+966 |                         .stroke(Stroke::new(1.0, p.border))
+    |                                             ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:995:45
+    |
+995 |                         .stroke(Stroke::new(1.0, p.border))
+    |                                             ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+    --> src\gui.rs:1028:45
+     |
+1028 |                         .stroke(Stroke::new(1.0, p.border))
+     |                                             ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+    --> src\gui.rs:1280:41
+     |
+1280 |                     .stroke(Stroke::new(1.0, p.border))
+     |                                         ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+    --> src\gui.rs:1424:41
+     |
+1424 |                     .stroke(Stroke::new(1.0, p.border))
+     |                                         ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: `vpn-config-checker` (bin "vpn-config-checker") generated 21 warnings
+error: could not compile `vpn-config-checker` (bin "vpn-config-checker") due to 21 previous errors; 21 warnings emitted
+   Compiling vpn-config-checker v0.2.0 (D:\a\config_test\config_test\rust-app)
+error: character literal may only contain one codepoint
+   --> src\tester.rs:149:26
+    |
+149 |     if combined.contains('🇮🇷') {
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+149 -     if combined.contains('🇮🇷') {
+149 +     if combined.contains("🇮🇷") {
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:152:26
+    |
+152 |     if combined.contains('🇷🇺') {
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+152 -     if combined.contains('🇷🇺') {
+152 +     if combined.contains("🇷🇺") {
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:155:26
+    |
+155 |     if combined.contains('🇨🇳') || combined.contains('🇭🇰') || combined.contains('🇲🇴') {
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+155 -     if combined.contains('🇨🇳') || combined.contains('🇭🇰') || combined.contains('🇲🇴') {
+155 +     if combined.contains("🇨🇳") || combined.contains('🇭🇰') || combined.contains('🇲🇴') {
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:155:53
+    |
+155 |     if combined.contains('🇨🇳') || combined.contains('🇭🇰') || combined.contains('🇲🇴') {
+    |                                                     ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+155 -     if combined.contains('🇨🇳') || combined.contains('🇭🇰') || combined.contains('🇲🇴') {
+155 +     if combined.contains('🇨🇳') || combined.contains("🇭🇰") || combined.contains('🇲🇴') {
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:155:80
+    |
+155 |     if combined.contains('🇨🇳') || combined.contains('🇭🇰') || combined.contains('🇲🇴') {
+    |                                                                                ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+155 -     if combined.contains('🇨🇳') || combined.contains('🇭🇰') || combined.contains('🇲🇴') {
+155 +     if combined.contains('🇨🇳') || combined.contains('🇭🇰') || combined.contains("🇲🇴") {
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:158:26
+    |
+158 |     if combined.contains('🇧🇾') {
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+158 -     if combined.contains('🇧🇾') {
+158 +     if combined.contains("🇧🇾") {
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:161:26
+    |
+161 |     if combined.contains('🇨🇺') {
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+161 -     if combined.contains('🇨🇺') {
+161 +     if combined.contains("🇨🇺") {
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:164:26
+    |
+164 |     if combined.contains('🇰🇵') {
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+164 -     if combined.contains('🇰🇵') {
+164 +     if combined.contains("🇰🇵") {
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:167:26
+    |
+167 |     if combined.contains('🇸🇾') {
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+167 -     if combined.contains('🇸🇾') {
+167 +     if combined.contains("🇸🇾") {
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:282:26
+    |
+282 |     if combined.contains('🇩🇪')
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+282 -     if combined.contains('🇩🇪')
+282 +     if combined.contains("🇩🇪")
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:293:26
+    |
+293 |     if combined.contains('🇺🇸')
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+293 -     if combined.contains('🇺🇸')
+293 +     if combined.contains("🇺🇸")
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:306:26
+    |
+306 |     if combined.contains('🇬🇧')
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+306 -     if combined.contains('🇬🇧')
+306 +     if combined.contains("🇬🇧")
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:318:26
+    |
+318 |     if combined.contains('🇳🇱')
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+318 -     if combined.contains('🇳🇱')
+318 +     if combined.contains("🇳🇱")
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:327:26
+    |
+327 |     if combined.contains('🇫🇷')
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+327 -     if combined.contains('🇫🇷')
+327 +     if combined.contains("🇫🇷")
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:337:26
+    |
+337 |     if combined.contains('🇸🇬')
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+337 -     if combined.contains('🇸🇬')
+337 +     if combined.contains("🇸🇬")
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:345:26
+    |
+345 |     if combined.contains('🇯🇵')
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+345 -     if combined.contains('🇯🇵')
+345 +     if combined.contains("🇯🇵")
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:355:26
+    |
+355 |     if combined.contains('🇹🇷')
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+355 -     if combined.contains('🇹🇷')
+355 +     if combined.contains("🇹🇷")
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:365:26
+    |
+365 |     if combined.contains('🇫🇮')
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+365 -     if combined.contains('🇫🇮')
+365 +     if combined.contains("🇫🇮")
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:374:26
+    |
+374 |     if combined.contains('🇸🇪')
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+374 -     if combined.contains('🇸🇪')
+374 +     if combined.contains("🇸🇪")
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:383:26
+    |
+383 |     if combined.contains('🇨🇦')
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+383 -     if combined.contains('🇨🇦')
+383 +     if combined.contains("🇨🇦")
+    |
+
+error: character literal may only contain one codepoint
+   --> src\tester.rs:392:26
+    |
+392 |     if combined.contains('🇰🇷')
+    |                          ^^^^
+    |
+help: if you meant to write a string literal, use double quotes
+    |
+392 -     if combined.contains('🇰🇷')
+392 +     if combined.contains("🇰🇷")
+    |
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:208:45
+    |
+208 |         visuals.window_stroke = Stroke::new(1.0, p.border);
+    |                                             ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+    = note: `#[warn(float_literal_f32_fallback)]` (part of `#[warn(future_incompatible)]`) on by default
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:210:48
+    |
+210 |         visuals.selection.stroke = Stroke::new(1.0, p.accent_cyan);
+    |                                                ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:212:64
+    |
+212 |         visuals.widgets.noninteractive.bg_stroke = Stroke::new(1.0, p.border);
+    |                                                                ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:213:64
+    |
+213 |         visuals.widgets.noninteractive.fg_stroke = Stroke::new(1.0, p.text_primary);
+    |                                                                ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:216:58
+    |
+216 |         visuals.widgets.inactive.bg_stroke = Stroke::new(1.0, p.border);
+    |                                                          ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:217:58
+    |
+217 |         visuals.widgets.inactive.fg_stroke = Stroke::new(1.0, p.text_primary);
+    |                                                          ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:220:57
+    |
+220 |         visuals.widgets.hovered.bg_stroke = Stroke::new(1.0, p.accent_cyan);
+    |                                                         ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:223:56
+    |
+223 |         visuals.widgets.active.bg_stroke = Stroke::new(1.0, p.accent_cyan);
+    |                                                        ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:275:29
+    |
+275 |         .stroke(Stroke::new(1.0, fg.gamma_multiply(0.45)))
+    |                             ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:359:45
+    |
+359 |                         .stroke(Stroke::new(1.0, p.border))
+    |                                             ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:504:49
+    |
+504 | ...                   .stroke(Stroke::new(1.0, p.border))
+    |                                           ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:673:41
+    |
+673 |                     .stroke(Stroke::new(1.0, p.border))
+    |                                         ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:799:41
+    |
+799 |                     .stroke(Stroke::new(1.0, p.border))
+    |                                         ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:843:49
+    |
+843 | ...                   .stroke(Stroke::new(1.0, p.border))
+    |                                           ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:905:45
+    |
+905 |                         .stroke(Stroke::new(1.0, p.border))
+    |                                             ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:937:45
+    |
+937 |                         .stroke(Stroke::new(1.0, p.border))
+    |                                             ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:966:45
+    |
+966 |                         .stroke(Stroke::new(1.0, p.border))
+    |                                             ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+   --> src\gui.rs:995:45
+    |
+995 |                         .stroke(Stroke::new(1.0, p.border))
+    |                                             ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+    --> src\gui.rs:1028:45
+     |
+1028 |                         .stroke(Stroke::new(1.0, p.border))
+     |                                             ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+    --> src\gui.rs:1280:41
+     |
+1280 |                     .stroke(Stroke::new(1.0, p.border))
+     |                                         ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied
+    --> src\gui.rs:1424:41
+     |
+1424 |                     .stroke(Stroke::new(1.0, p.border))
+     |                                         ^^^ help: explicitly specify the type as `f32`: `1.0_f32`
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #154024 <https://github.com/rust-lang/rust/issues/154024>
+
+warning: `vpn-config-checker` (bin "vpn-config-checker" test) generated 21 warnings
+error: could not compile `vpn-config-checker` (bin "vpn-config-checker" test) due to 21 previous errors; 21 warnings emitted
+Error: Process completed with exit code 1.

@@ -23,9 +23,9 @@ In addition to manual Telegram text extraction, this version incorporates:
 - **`src/extractor.rs`**: Protocol regex matching, Base64 subscription block expansion, and streaming JSON deserializer (`serde_json::Deserializer` with byte-offset advancement).
 - **`src/converter.rs`**: Zero-dependency percent-decoder and universal converter translating VMess, VLESS (Reality/TLS/uTLS), Trojan, Hysteria 2, TUIC, Shadowsocks (SIP002 & Legacy Base64), raw JSON outbounds, and SOCKS/HTTP into sing-box or Xray configurations.
 - **`src/fetcher.rs`**: Internet Config Discovery engine that queries public Telegram channel mirrors (`https://t.me/s/<channel>`), GitHub aggregators, and subscription URLs.
-- **`src/tester.rs`**: Non-blocking async 3-Stage Deep Verification engine (`is_redirected_to_regions_doc` + `check_gemini_api_location_gate` + `kill_on_drop(true)`).
+- **`src/tester.rs`**: Non-blocking async 3-Stage Deep Verification engine with multi-codepoint string literal flag matching (`"🇮🇷"`, `"🇷🇺"`, etc.), multi-source egress GeoIP (`Cloudflare`, `IP.sb`, `IPInfo`, `IP-API`), HTTP 403/451 geo-restriction traps, and `kill_on_drop(true)`.
 - **`src/downloader.rs`**: Resolves the running `.exe` directory (`std::env::current_exe()`), reads/writes `<exe_dir>/config.json` (`AppConfig`), and downloads/extracts `xray.exe` and `sing-box.exe` into `<exe_dir>/cores/`.
-- **`src/gui.rs`**: High-contrast, DPI-scaled native desktop UI (`eframe`/`egui`) with Midnight Signal `Palette`, dedicated bottom status bar (preventing toolbar text collisions), full-width stacked path cards in the Settings modal, and clean font-safe typography with zero missing-glyph boxes.
+- **`src/gui.rs`**: High-contrast, DPI-scaled native desktop UI (`eframe`/`egui`) with pure black and dark graphite `Palette`, explicit `f32` stroke typing, dedicated bottom status bar, full-width stacked path cards in Settings, 24px thick progress bar, 10-row editor, and clean font-safe typography.
 - **`src/cli.rs`**: Headless CLI runner supporting `--fetch-sources`, `--input`, `--concurrency`, and `--filter-supported-only`.
 
 ### 2.2 Modular Frontend Architecture (`src/components/` & `src/utils/`)
