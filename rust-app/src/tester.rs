@@ -280,12 +280,13 @@ pub async fn run_single_test(
 
         if let Some(c) = &detected_country {
             if !is_supported {
+                let detail = format!("Egress IP is in unsupported country: {c}");
                 return Ok((
                     detected_country,
                     false,
                     None,
                     TestStatus::RegionBlocked,
-                    format!("Egress IP is in unsupported country: {c}"),
+                    detail,
                 ));
             }
         }
@@ -339,13 +340,16 @@ pub async fn run_single_test(
             ));
         }
 
-        let country_str = detected_country.as_deref().unwrap_or("Verified Region");
+        let detail = {
+            let country_str = detected_country.as_deref().unwrap_or("Verified Region");
+            format!("Verified: [{country_str}] AI Studio HTTP 200 & Gemini API OK")
+        };
         Ok((
             detected_country,
             true,
             Some(latency_ms),
             TestStatus::Working,
-            format!("Verified: [{country_str}] AI Studio HTTP 200 & Gemini API OK"),
+            detail,
         ))
     }
     .await;
