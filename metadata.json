@@ -1,0 +1,6 @@
+{
+  "name": "VPN Config Checker (Rust & Windows)",
+  "description": "Ultra-lightweight VPN configuration extractor and validator written in Rust with automated Windows EXE GitHub Actions build workflow.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
