@@ -30,21 +30,46 @@ jobs:
         with:
           workspaces: rust-app -> target
 
+      - name: Run cargo check & test
+        working-directory: rust-app
+        run: |
+          cargo check --target x86_64-pc-windows-msvc
+          cargo test --target x86_64-pc-windows-msvc
+
       - name: Build release executable
         working-directory: rust-app
         run: |
           cargo build --release --target x86_64-pc-windows-msvc
 
-      - name: Verify executable output
+      - name: Package portable release folder (exe + default config.json)
         shell: bash
         run: |
-          ls -lh rust-app/target/x86_64-pc-windows-msvc/release/vpn-config-checker.exe
+          mkdir -p dist-portable/cores
+          cp rust-app/target/x86_64-pc-windows-msvc/release/vpn-config-checker.exe dist-portable/vpn-config-checker.exe
+          cat << 'EOF' > dist-portable/config.json
+          {
+            "theme": "system",
+            "xray_path": ".\\cores\\xray\\xray.exe",
+            "singbox_path": ".\\cores\\sing-box\\sing-box.exe",
+            "v2rayn_path": ".\\v2rayN.exe",
+            "concurrency": 12,
+            "timeout_secs": 15,
+            "strict_region_only": true,
+            "check_geo_ip": true,
+            "check_ai_studio_web": true,
+            "check_gemini_api": true,
+            "custom_source_url": ""
+          }
+          EOF
+          ls -lh dist-portable/
 
       - name: Upload Windows Executable Artifact
         uses: actions/upload-artifact@v4
         with:
           name: vpn-config-checker-windows-x64
-          path: rust-app/target/x86_64-pc-windows-msvc/release/vpn-config-checker.exe
+          path: |
+            dist-portable/vpn-config-checker.exe
+            dist-portable/config.json
           if-no-files-found: error
           retention-days: 90
 
@@ -52,7 +77,9 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: rust-app/target/x86_64-pc-windows-msvc/release/vpn-config-checker.exe
+          files: |
+            dist-portable/vpn-config-checker.exe
+            dist-portable/config.json
           draft: false
           prerelease: false
           generate_release_notes: true

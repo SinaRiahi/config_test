@@ -1,61 +1,69 @@
 # VPN Config Checker: Architecture & AI Guidelines
 
 ## 1. Project Overview & Objectives
-This project provides a high-performance, ultra-lightweight rewrite of the **VPN Config Checker for Windows** in **Rust**, replacing the previous Python + PySide6 stack (~80MB+ memory, heavy runtime dependencies) with a native, zero-runtime-dependency binary (<8MB compiled `.exe`, instant startup, multi-threaded testing).
+This project provides a high-performance, ultra-lightweight rewrite of the **VPN Config Checker for Windows** in **Rust**, replacing the previous Python + PySide6 stack with a native, zero-runtime-dependency binary (<8MB compiled `.exe`, instant startup, multi-threaded testing).
 
-Additionally, this repository contains:
-1. Complete Rust source code with native GUI (`eframe`/`egui`) and CLI modes, protocol parsers (VMess, VLESS + Reality, Trojan, Hysteria 2, TUIC, Shadowsocks, SOCKS/HTTP), core auto-downloader (Xray & sing-box), and parallel AI Studio HTTP 200 verifier.
-2. Production-grade GitHub Actions workflow (`.github/workflows/build.yml`) configured to automatically build and optimize the Windows `.exe` (`x86_64-pc-windows-msvc`) with LTO, size-stripping, and artifact/release publishing on every push.
-3. An interactive Web Application (React 19 + TypeScript + Vite + Tailwind CSS v4) allowing users to parse, validate, and inspect Telegram VPN configurations in real time, test configs, view generated Xray/sing-box schemas, explore Rust source modules, and download the ready-to-build Rust package.
+In addition to manual Telegram text extraction, this version incorporates:
+1. **Internet Config Discovery Hub**: Automated retrieval from public Telegram channel web mirrors (`https://t.me/s/<channel>`), daily GitHub proxy aggregators, and custom subscription feeds without requiring Telegram API keys or bot tokens.
+2. **3-Pillar AI Studio Verification Pipeline**:
+   - *Stage 1 (Egress Geolocation)*: Resolves public exit IP and ISO-2 country code, checking against Google AI Studio's 180+ supported countries list.
+   - *Stage 2 (Web Inspection)*: Verifies HTTP 200 on `https://aistudio.google.com/` while scanning response body for geo-blocking text ("not available in your region", redirects).
+   - *Stage 3 (Gemini API Gateway Probe)*: Verifies connectivity to `https://generativelanguage.googleapis.com` to guarantee model generation will not be blocked.
+3. **Automated GitHub CI/CD Pipeline** (`.github/workflows/build.yml`): Automatically compiles `vpn-config-checker.exe` (`x86_64-pc-windows-msvc`) with LTO and size stripping on every push and attaches it to workflow artifacts and GitHub releases.
+4. **Interactive Web Companion Dashboard**: Allows online testing, discovery feed browsing, config inspection, and 1-click packaging of the Rust source `.zip`.
 
 ---
 
 ## 2. System Architecture
 
 ### 2.1 Rust Application Architecture (`rust-app/`)
-- **`Cargo.toml`**: Configured with release profile optimizations (`opt-level = "z"`, `lto = true`, `codegen-units = 1`, `panic = "abort"`, `strip = true`) for minimal `.exe` binary footprint.
-- **`src/main.rs`**: Application entry point supporting dual execution modes:
-  - Default: Native GUI powered by `eframe` (ultra-responsive, instant rendering, native Windows windowing).
-  - `--cli`: Headless mode for scripted batch testing (`--input`, `--concurrency`, `--output`, `--core-dir`).
-- **`src/extractor.rs`**: Fast regex and JSON parser that isolates VPN URIs (`vmess://`, `vless://`, `trojan://`, `ss://`, `socks5://`, `hysteria2://`, `hy2://`, `tuic://`) and raw Xray/sing-box JSON blocks from noisy Telegram chat logs.
-- **`src/converter.rs`**: Protocol decoding (Base64 VMess, URL parameter parsing for Reality, SNI, ALPN, gRPC, WebSocket, TUIC congestion control, Hysteria2 obfs) and translation into sing-box or Xray configuration structures.
-- **`src/downloader.rs`**: Automatic GitHub release asset locator and extractor for `XTLS/Xray-core` and `SagerNet/sing-box` Windows 64-bit binaries.
-- **`src/tester.rs`**: Multi-threaded concurrency engine with `tokio` / crossbeam channel workers, dynamic ephemeral port binding, hidden child process lifecycle (`CREATE_NO_WINDOW`), socket readiness check, and HTTP 200 verification against `https://aistudio.google.com/`.
-- **`src/gui.rs`**: Clean, developer-centric UI with paste box, batch controls, live status progress bar, sortable results table, clipboard copy, and file export.
+- **`Cargo.toml`**: Size-optimized profile (`opt-level = "z"`, `lto = true`, `codegen-units = 1`, `panic = "abort"`, `strip = true`).
+- **`src/main.rs`**: Application entry point with dual modes (Native `eframe` GUI and headless Tokio CLI) and embedded 32x32 RGBA taskbar/titlebar icon (`build_app_icon()`).
+- **`src/extractor.rs`**: Protocol regex matching, Base64 subscription block expansion, and streaming JSON deserializer (`serde_json::Deserializer` with byte-offset advancement).
+- **`src/converter.rs`**: Zero-dependency percent-decoder and universal converter translating VMess, VLESS (Reality/TLS/uTLS), Trojan, Hysteria 2, TUIC, Shadowsocks (SIP002 & Legacy Base64), raw JSON outbounds, and SOCKS/HTTP into sing-box or Xray configurations.
+- **`src/fetcher.rs`**: Internet Config Discovery engine that queries public Telegram channel mirrors (`https://t.me/s/<channel>`), GitHub aggregators, and subscription URLs.
+- **`src/tester.rs`**: Non-blocking async 3-Pillar verification engine (`tokio::net::TcpStream` + `tokio::time::sleep` + `kill_on_drop(true)`).
+- **`src/downloader.rs`**: Resolves the running `.exe` directory (`std::env::current_exe()`), reads/writes `<exe_dir>/config.json` (`AppConfig`), and downloads/extracts `xray.exe` and `sing-box.exe` into `<exe_dir>/cores/`.
+- **`src/gui.rs`**: Compact, icon-driven native immediate-mode UI (`eframe`/`egui`) with a unified `⚙ Settings` modal that loads and auto-saves `<exe_dir>/config.json` (Theme Switch, `xray.exe` / `sing-box.exe` / `v2rayN.exe` paths, GitHub auto-installer, and runtime verification options).
+- **`src/cli.rs`**: Headless CLI runner supporting `--fetch-sources`, `--input`, `--concurrency`, and `--filter-supported-only`.
 
-### 2.2 CI/CD Pipeline (`.github/workflows/build.yml`)
-- Triggers on:
-  - `push` to `main`, `master`, or tags `v*`
-  - `pull_request` to `main`
-  - `workflow_dispatch` (manual trigger)
-- Matrix job targeting:
-  - `windows-latest` (`x86_64-pc-windows-msvc`)
-  - Optional `ubuntu-latest` cross-compile with `mingw`
-- Steps:
-  - Checkout repository
-  - Install Rust stable toolchain with caching (`Swatinem/rust-cache`)
-  - Run `cargo test`
-  - Build optimized release binary `cargo build --release --target x86_64-pc-windows-msvc`
-  - Upload `vpn-config-checker.exe` as GitHub Actions build artifact
-  - On tagged releases, publish automated GitHub Release with executable attached.
+### 2.2 Modular Frontend Architecture (`src/components/` & `src/utils/`)
+The web companion application is organized into 4 compact, icon-driven views (**Workspace**, **Regions**, **Rust**, **CI/CD**) backed by single-responsibility components:
+- `AppIcon.tsx` & `public/icon.svg`: Custom vector app icon featuring a monochrome obsidian shield, cryptographic routing nodes, and an emerald verification badge.
+- `Header.tsx`: Compact 3-zone top bar with `<AppIcon />` wordmark, icon+short-word navigation tabs, `Settings` button, and `.zip` download button.
+- `SettingsModal.tsx`: Centralized Settings modal housing the Theme Switcher (`Auto (Win 11)`, `Dark`, `Light`), Third-Party Core Paths (`xray.exe`, `sing-box.exe`, `v2rayN.exe`) with 1-click GitHub release auto-installer, thread concurrency, timeout, and 3-Pillar verification toggles (persisted in `localStorage`).
+- `MetricCards.tsx`: Compact single-row KPI strip with icons and tabular numerals.
+- `ExtractorPanel.tsx`: Compact icon-driven toolbar with `Paste` / `Online Feeds` switcher, drag-and-drop file uploader, Base64/JSON/URI extraction, and collapse toggle.
+- `TestControlBar.tsx`: Single-line 3-Pillar status bar with quick settings badge (`concurrency · timeout`), slim progress bar, and instant Stop cancellation.
+- `ConfigTable.tsx`: High-density 36px-row sortable data grid with icon headers, live search, protocol/region filters, and icon action buttons.
+- `RegionMatrixPanel.tsx`: Compact 5-column Google AI Studio regional support grid.
+- `RustSourceViewer.tsx` & `src/utils/rustFiles.ts`: Directly imports all `/rust-app/` files via Vite `?raw` imports so the code explorer and `.zip` bundler always serve the exact, compilable Rust source code.
+- `GitHubWorkflowGuide.tsx`: Compact 3-step CI/CD workflow viewer.
+- `ConfigInspectorModal.tsx`: Compact modal displaying parsed host/core/region metadata and JSON/URI copy blocks.
+- `Toast.tsx`: Non-intrusive micro-toasts confirming user actions.
 
-### 2.3 Web Companion App (`src/`)
-- **`App.tsx`**: Full-screen developer console featuring:
-  - Config Extractor & Live Inspector: Paste messy Telegram dumps, extract configs, view protocol distributions.
-  - Config Details & JSON Generator: Preview exact Xray and sing-box JSON payloads generated for each link.
-  - Rust Project & GitHub Actions Hub: Browse Rust code files, copy GitHub workflow, and download the entire Rust source zip ready to push to GitHub or compile locally with `cargo build --release`.
-  - Simulation & Verification Suite: Test proxy configurations, view latency, check parameters, and export working configs.
+### 2.4 Supported AI Studio Regions
+Google AI Studio is officially supported in over 180 countries and territories (e.g. US, UK, DE, FR, JP, SG, NL, CA, AU, BR, IN, KR, TW, etc.). Territories known to be geo-blocked by Google include CN, IR, RU, CU, KP, SY. Configs exiting in blocked territories or triggering Google's geo-blocking notice are marked as `RegionBlocked`.
 
 ---
 
-## 3. Design System & UI Principles
-- **Theme**: High-contrast, clean dark theme (`#0B0F19`, `#111827`, `#1F2937`) with Emerald (`#10B981`) for working states and Rose (`#F43F5E`) for failures.
-- **Typography**: Display & body sans paired with monospace tabular figures (`tabular-nums font-mono`) for latency, ports, and addresses.
-- **Zero-Pill Rule**: Informative metadata uses subtle text separators (`·` or `/`) instead of chunky colored pills.
-- **Top Bar Contract**: Strict 3-zone header with 1-line title, single-line navigation links, and primary action.
+## 3. UI & Design Principles
+- **Monochrome Foundation (Black & White)**:
+  - 60% Pure Void & Obsidian Canvas (`#000000`, `#050505`, `#09090b`).
+  - 30% Precision Structural Surfaces (`#111115`, `#18181b`, `#27272a`) with crisp 1px hairline borders (`border-white/10`, `border-zinc-800`), clean micro-shadows, and high-legibility crisp white typography (`#ffffff`, `#fafafa`, `#e4e4e7`).
+- **10% Semantic Functional Accents**:
+  - **Green (`#22c55e` / `#10b981`)**: Verified AI Studio HTTP 200, egress region verified, operational pass states.
+  - **Amber (`#f59e0b` / `#fbbf24`)**: API warnings, partial blocks, high latency (>1,500ms), and attention prompts.
+  - **Red (`#ef4444` / `#f43f5e`)**: Geo-blocked regions (unsupported territories), connection timeouts, failure alerts.
+- **Dual-Theme Engine (Light, Dark, and Auto Windows 11 Match)**:
+  - Supports 3 modes: `Light`, `Dark`, and `Auto (Windows 11)`.
+  - When `Auto (Windows 11)` is selected, queries `window.matchMedia('(prefers-color-scheme: dark)')` with dynamic listener to reactively mirror the host OS/Win11 appearance settings in real-time.
+  - Persists preference in `localStorage.getItem('vpn_theme_preference')`.
+  - Dark Mode: Obsidian black canvas (`#050507`), jet surfaces (`#0c0c0e`), hairline borders (`#27272a`), white text (`#ffffff`).
+  - Light Mode: Clean zinc canvas (`#f8f9fa`), pure white surfaces (`#ffffff`), subtle borders (`#e4e4e7`), dark zinc text (`#09090b`).
+  - Strict semantic colors (Emerald Green, Amber, Crimson Red) preserve high WCAG AA contrast across both themes.
+- **Top Bar Contract**: Exactly 3 zones (wordmark brand, single-line navigation links, primary action button) separated by `gap-8`.
+- **Zero-Pill Rule**: Informational metadata uses subtle typographic separators (`·` or `/`) instead of chunky bordered pills.
+- **Tabular Figures**: Tabular numerals (`font-mono tabular-nums`) for all latency, IP, and port figures.
 
----
 
-## 4. Maintenance & Governance
-- Any breaking architectural modification must be confirmed before implementation.
-- All code modifications must pass compilation and linting checks.

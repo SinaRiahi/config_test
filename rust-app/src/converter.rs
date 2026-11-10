@@ -28,18 +28,73 @@ fn decode_b64(input: &str) -> Result<Vec<u8>, String> {
         .map_err(|e| format!("Base64 decode failed: {e}"))
 }
 
+/// Zero-dependency percent decoder for URI fragments and credentials
+fn percent_decode(input: &str) -> String {
+    let bytes = input.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            if let (Some(h), Some(l)) = (
+                (bytes[i + 1] as char).to_digit(16),
+                (bytes[i + 2] as char).to_digit(16),
+            ) {
+                out.push((h * 16 + l) as u8);
+                i += 3;
+                continue;
+            }
+        } else if bytes[i] == b'+' {
+            out.push(b' ');
+            i += 1;
+            continue;
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8(out).unwrap_or_else(|_| input.to_string())
+}
+
 fn parse_query(url: &Url) -> HashMap<String, String> {
     url.query_pairs().into_owned().collect()
 }
 
 pub fn uri_to_outbound(uri: &str, tag: &str) -> Result<ParsedOutbound, String> {
-    let (scheme, rest) = uri
+    let trimmed = uri.trim();
+
+    // Handle raw JSON configurations directly
+    if trimmed.starts_with('{') {
+        let val: Value = serde_json::from_str(trimmed).map_err(|e| format!("Invalid JSON config: {e}"))?;
+        if let Some(outbounds) = val.get("outbounds").and_then(|v| v.as_array()) {
+            if let Some(first) = outbounds.first() {
+                let mut out = first.clone();
+                if out.get("tag").is_none() {
+                    out["tag"] = json!(tag);
+                }
+                return Ok(ParsedOutbound {
+                    outbound: out,
+                    name: "JSON Outbound".to_string(),
+                    engine: CoreEngine::SingBox,
+                });
+            }
+        }
+        let mut out = val;
+        if out.get("tag").is_none() {
+            out["tag"] = json!(tag);
+        }
+        return Ok(ParsedOutbound {
+            outbound: out,
+            name: "JSON Config".to_string(),
+            engine: CoreEngine::SingBox,
+        });
+    }
+
+    let (scheme, rest) = trimmed
         .split_once("://")
         .ok_or_else(|| "Invalid URI scheme".to_string())?;
     let scheme_lower = scheme.to_lowercase();
 
     let (body, fragment) = match rest.split_once('#') {
-        Some((b, f)) => (b, urlencoding::decode(f).unwrap_or_else(|_| f.into()).to_string()),
+        Some((b, f)) => (b, percent_decode(f)),
         None => (rest, scheme_lower.to_uppercase()),
     };
 
@@ -49,6 +104,9 @@ pub fn uri_to_outbound(uri: &str, tag: &str) -> Result<ParsedOutbound, String> {
         let d: Value = serde_json::from_str(&json_str).map_err(|e| e.to_string())?;
 
         let server = d["add"].as_str().unwrap_or("").to_string();
+        if server.is_empty() {
+            return Err("VMess config missing server address".to_string());
+        }
         let port = d["port"]
             .as_u64()
             .or_else(|| d["port"].as_str().and_then(|p| p.parse().ok()))
@@ -59,6 +117,11 @@ pub fn uri_to_outbound(uri: &str, tag: &str) -> Result<ParsedOutbound, String> {
             .or_else(|| d["aid"].as_str().and_then(|p| p.parse().ok()))
             .unwrap_or(0);
         let security = d["scy"].as_str().unwrap_or("auto");
+        let ps_name = d["ps"]
+            .as_str()
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string())
+            .unwrap_or(fragment);
 
         let mut outbound = json!({
             "type": "vmess",
@@ -87,7 +150,8 @@ pub fn uri_to_outbound(uri: &str, tag: &str) -> Result<ParsedOutbound, String> {
         if d["tls"].as_str() == Some("tls") {
             let sni = d["sni"]
                 .as_str()
-                .or_else(|| d["host"].as_str())
+                .filter(|s| !s.is_empty())
+                .or_else(|| d["host"].as_str().filter(|s| !s.is_empty()))
                 .unwrap_or(&server);
             outbound["tls"] = json!({
                 "enabled": true,
@@ -97,20 +161,68 @@ pub fn uri_to_outbound(uri: &str, tag: &str) -> Result<ParsedOutbound, String> {
 
         return Ok(ParsedOutbound {
             outbound,
+            name: ps_name,
+            engine: CoreEngine::Xray,
+        });
+    }
+
+    // Special handling for Shadowsocks: supports both Legacy Base64 (ss://BASE64(method:pass@host:port)#tag)
+    // and SIP002 (ss://BASE64(method:pass)@host:port#tag)
+    if scheme_lower == "ss" {
+        let normalized_ss = if !body.contains('@') {
+            let decoded = decode_b64(body)?;
+            let decoded_str = String::from_utf8(decoded).map_err(|e| e.to_string())?;
+            format!("ss://{decoded_str}#{fragment}")
+        } else {
+            trimmed.to_string()
+        };
+
+        let parsed_ss = Url::parse(&normalized_ss).map_err(|e| format!("SS URL parse failed: {e}"))?;
+        let host = parsed_ss
+            .host_str()
+            .ok_or_else(|| "Missing SS host".to_string())?
+            .to_string();
+        let port = parsed_ss.port().unwrap_or(8388);
+        let user = percent_decode(parsed_ss.username());
+        let pass_part = parsed_ss.password().map(percent_decode);
+
+        let (method, password) = if let Some(p) = pass_part {
+            (user, p)
+        } else if let Ok(decoded) = decode_b64(&user) {
+            let s = String::from_utf8(decoded).unwrap_or_default();
+            if let Some((m, p)) = s.split_once(':') {
+                (m.to_string(), p.to_string())
+            } else {
+                ("aes-128-gcm".to_string(), s)
+            }
+        } else {
+            ("aes-128-gcm".to_string(), user)
+        };
+
+        let out = json!({
+            "type": "shadowsocks",
+            "tag": tag,
+            "server": host,
+            "server_port": port,
+            "method": method,
+            "password": password
+        });
+        return Ok(ParsedOutbound {
+            outbound: out,
             name: fragment,
             engine: CoreEngine::Xray,
         });
     }
 
-    let parsed_url = Url::parse(uri).map_err(|e| format!("URL parse failed: {e}"))?;
+    let parsed_url = Url::parse(trimmed).map_err(|e| format!("URL parse failed: {e}"))?;
     let q = parse_query(&parsed_url);
     let host = parsed_url
         .host_str()
         .ok_or_else(|| "Missing host".to_string())?
         .to_string();
     let port = parsed_url.port().unwrap_or(443);
-    let username = parsed_url.username();
-    let password = parsed_url.password().unwrap_or("");
+    let username = percent_decode(parsed_url.username());
+    let password = parsed_url.password().map(percent_decode).unwrap_or_default();
 
     match scheme_lower.as_str() {
         "vless" => {
@@ -121,22 +233,28 @@ pub fn uri_to_outbound(uri: &str, tag: &str) -> Result<ParsedOutbound, String> {
                 "server_port": port,
                 "uuid": username
             });
-            if let Some(flow) = q.get("flow") {
+            if let Some(flow) = q.get("flow").filter(|f| !f.is_empty()) {
                 out["flow"] = json!(flow);
             }
             let security = q.get("security").map(|s| s.as_str()).unwrap_or("");
-            if security == "tls" || security == "reality" || q.get("tls").map(|v| v == "true" || v == "1").unwrap_or(false) {
+            if security == "tls"
+                || security == "reality"
+                || q.get("tls").map(|v| v == "true" || v == "1").unwrap_or(false)
+            {
                 let mut tls = json!({ "enabled": true });
-                let sni = q.get("sni").or_else(|| q.get("servername")).unwrap_or(&host);
+                let sni = q
+                    .get("sni")
+                    .or_else(|| q.get("servername"))
+                    .unwrap_or(&host);
                 tls["server_name"] = json!(sni);
                 if let Some(alpn) = q.get("alpn") {
                     tls["alpn"] = json!(alpn.split(',').collect::<Vec<_>>());
                 }
                 if security == "reality" {
-                    let mut reality = json!({
+                    let reality = json!({
                         "enabled": true,
-                        "public_key": q.get("pbk").unwrap_or(&"".to_string()),
-                        "short_id": q.get("sid").unwrap_or(&"".to_string())
+                        "public_key": q.get("pbk").cloned().unwrap_or_default(),
+                        "short_id": q.get("sid").cloned().unwrap_or_default()
                     });
                     if let Some(fp) = q.get("fp") {
                         tls["utls"] = json!({ "enabled": true, "fingerprint": fp });
@@ -148,13 +266,17 @@ pub fn uri_to_outbound(uri: &str, tag: &str) -> Result<ParsedOutbound, String> {
 
             let net_type = q.get("type").map(|s| s.as_str()).unwrap_or("tcp");
             if net_type == "ws" {
-                let mut ws = json!({ "type": "ws", "path": q.get("path").unwrap_or(&"".to_string()) });
+                let mut ws = json!({ "type": "ws", "path": q.get("path").cloned().unwrap_or_default() });
                 if let Some(h) = q.get("host") {
                     ws["headers"] = json!({ "Host": h });
                 }
                 out["transport"] = ws;
             } else if net_type == "grpc" {
-                let service = q.get("serviceName").or_else(|| q.get("service_name")).unwrap_or(&"".to_string());
+                let service = q
+                    .get("serviceName")
+                    .or_else(|| q.get("service_name"))
+                    .cloned()
+                    .unwrap_or_default();
                 out["transport"] = json!({ "type": "grpc", "service_name": service });
             }
 
@@ -178,7 +300,7 @@ pub fn uri_to_outbound(uri: &str, tag: &str) -> Result<ParsedOutbound, String> {
                 }
             });
             if q.get("type").map(|s| s.as_str()) == Some("ws") {
-                let mut ws = json!({ "type": "ws", "path": q.get("path").unwrap_or(&"".to_string()) });
+                let mut ws = json!({ "type": "ws", "path": q.get("path").cloned().unwrap_or_default() });
                 if let Some(h) = q.get("host") {
                     ws["headers"] = json!({ "Host": h });
                 }
@@ -202,7 +324,7 @@ pub fn uri_to_outbound(uri: &str, tag: &str) -> Result<ParsedOutbound, String> {
             if let Some(obfs) = q.get("obfs") {
                 tls["obfs"] = json!({
                     "type": obfs,
-                    "password": q.get("obfs-password").unwrap_or(&"".to_string())
+                    "password": q.get("obfs-password").cloned().unwrap_or_default()
                 });
             }
             let out = json!({
@@ -227,8 +349,8 @@ pub fn uri_to_outbound(uri: &str, tag: &str) -> Result<ParsedOutbound, String> {
                 "server_port": port,
                 "uuid": username,
                 "password": password,
-                "congestion_control": q.get("congestion_control").unwrap_or(&"bbr".to_string()),
-                "udp_relay_mode": q.get("udp_relay_mode").unwrap_or(&"native".to_string()),
+                "congestion_control": q.get("congestion_control").cloned().unwrap_or_else(|| "bbr".to_string()),
+                "udp_relay_mode": q.get("udp_relay_mode").cloned().unwrap_or_else(|| "native".to_string()),
                 "tls": {
                     "enabled": true,
                     "server_name": q.get("sni").unwrap_or(&host)
@@ -238,38 +360,6 @@ pub fn uri_to_outbound(uri: &str, tag: &str) -> Result<ParsedOutbound, String> {
                 outbound: out,
                 name: fragment,
                 engine: CoreEngine::SingBox,
-            })
-        }
-        "ss" => {
-            // Shadowsocks SIP002 format
-            let mut method = "aes-128-gcm".to_string();
-            let mut pass = "".to_string();
-
-            if username.contains(':') {
-                let parts: Vec<&str> = username.splitn(2, ':').collect();
-                method = parts[0].to_string();
-                pass = parts[1].to_string();
-            } else if let Ok(decoded) = decode_b64(username) {
-                if let Ok(s) = String::from_utf8(decoded) {
-                    if let Some((m, p)) = s.split_once(':') {
-                        method = m.to_string();
-                        pass = p.to_string();
-                    }
-                }
-            }
-
-            let out = json!({
-                "type": "shadowsocks",
-                "tag": tag,
-                "server": host,
-                "server_port": port,
-                "method": method,
-                "password": pass
-            });
-            Ok(ParsedOutbound {
-                outbound: out,
-                name: fragment,
-                engine: CoreEngine::Xray,
             })
         }
         "socks" | "socks5" | "http" | "https" => {
@@ -417,7 +507,7 @@ pub fn make_xray_config(outbound: &Value, port: u16) -> Result<Value, String> {
                 }]
             })
         }
-        _ => return Err(format!("Protocol {typ} is not supported directly in Xray, use sing-box")),
+        _ => return Err(format!("Protocol {typ} requires sing-box core")),
     };
 
     Ok(json!({

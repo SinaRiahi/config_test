@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <rect width="64" height="64" rx="16" fill="#09090B"/>
+  <rect x="2" y="2" width="60" height="60" rx="14" stroke="#27272A" stroke-width="2"/>
+  <!-- Outer Shield -->
+  <path d="M32 10L14 17.5V30.5C14 42.8 21.7 53.8 32 57C42.3 53.8 50 42.8 50 30.5V17.5L32 10Z" fill="#18181B" stroke="#FAFAFA" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- Inner Routing Nodes -->
+  <circle cx="24" cy="29" r="3" fill="#FAFAFA"/>
+  <circle cx="40" cy="24" r="3" fill="#FAFAFA"/>
+  <path d="M24 29L32 22L40 24" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Verified Emerald Checkmark Badge -->
+  <circle cx="35" cy="37" r="9" fill="#10B981"/>
+  <path d="M31 37.2L33.8 40L39.5 34.3" stroke="#050507" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
