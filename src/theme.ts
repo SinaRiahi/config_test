@@ -5,12 +5,12 @@
 
 export const THEME = {
   bg: {
-    main: '#090E17',
-    secondary: '#0F1724',
-    card: '#131D2B',
-    elevated: '#1B293A',
-    input: '#0C1420',
-    hover: '#182435',
+    main: '#060709',       // Pure black main background
+    secondary: '#0D0E12',  // Dark grey secondary background
+    card: '#13141A',       // Card and panel surface
+    elevated: '#1B1D26',   // Elevated card surface
+    input: '#090A0E',      // Recessed input field background
+    hover: '#1F222E',
   },
   accent: {
     primary: '#22D3EE',    // Electric Cyan

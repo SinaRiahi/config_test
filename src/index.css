@@ -1,12 +1,12 @@
 @import "tailwindcss";
 
 @theme {
-  --color-signal-bg: #090E17;
-  --color-signal-secondary: #0F1724;
-  --color-signal-panel: #131D2B;
-  --color-signal-elevated: #1B293A;
-  --color-signal-input: #0C1420;
-  --color-signal-hover: #182435;
+  --color-signal-bg: #060709;
+  --color-signal-secondary: #0D0E12;
+  --color-signal-panel: #13141A;
+  --color-signal-elevated: #1B1D26;
+  --color-signal-input: #090A0E;
+  --color-signal-hover: #1F222E;
 
   --color-signal-cyan: #22D3EE;
   --color-signal-softcyan: #67E8F9;
@@ -20,18 +20,18 @@
   --color-signal-secondary-text: #94A3B8;
   --color-signal-muted: #64748B;
 
-  --color-signal-border: #263548;
+  --color-signal-border: #252836;
   --color-signal-focus: #22D3EE;
 }
 
 @layer base {
   :root {
     color-scheme: dark;
-    --bg-main: #090E17;
-    --bg-secondary: #0F1724;
-    --bg-panel: #131D2B;
-    --bg-elevated: #1B293A;
-    --bg-input: #0C1420;
+    --bg-main: #060709;
+    --bg-secondary: #0D0E12;
+    --bg-panel: #13141A;
+    --bg-elevated: #1B1D26;
+    --bg-input: #090A0E;
     
     --accent-primary: #22D3EE;
     --accent-secondary: #67E8F9;
@@ -45,19 +45,29 @@
     --text-secondary: #94A3B8;
     --text-muted: #64748B;
 
-    --border-default: #263548;
+    --border-default: #252836;
     --border-focus: #22D3EE;
   }
 
   body {
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-    background-color: #090E17;
+    background-color: #060709;
     color: #E8EEF6;
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     overflow-x: hidden;
   }
 
-  /* Midnight Signal sleek dark scrollbar */
+  /* Remove number input spinner arrows */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+
+  /* Sleek dark scrollbar */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -66,10 +76,10 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #263548;
+    background: #252836;
     border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #374B64;
+    background: #363A4D;
   }
 }

@@ -201,12 +201,12 @@ export const ExtractorPanel: React.FC<ExtractorPanelProps> = ({
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 placeholder="// Paste Telegram dumps, vless://, vmess://, hysteria2://, trojan://, ss:// links, Base64 blocks, or JSON outbounds (or drag & drop file here)..."
-                rows={4}
-                className="w-full bg-transparent p-3.5 text-xs sm:text-[13px] font-mono text-[#E8EEF6] placeholder-[#64748B] focus:outline-none resize-y leading-relaxed selection:bg-[#22D3EE]/25"
+                rows={10}
+                className="w-full bg-transparent p-4 text-xs sm:text-[13px] font-mono text-[#E8EEF6] placeholder-[#64748B] focus:outline-none resize-y leading-relaxed selection:bg-[#22D3EE]/25 min-h-[220px] sm:min-h-[250px]"
               />
 
               {isDragging && (
-                <div className="absolute inset-0 bg-[#0C1420]/90 backdrop-blur-xs flex items-center justify-center rounded-lg pointer-events-none">
+                <div className="absolute inset-0 bg-[#090A0E]/95 backdrop-blur-xs flex items-center justify-center rounded-lg pointer-events-none">
                   <span className="text-sm font-semibold text-[#E8EEF6] flex items-center gap-2">
                     <UploadCloud className="w-5 h-5 text-[#22D3EE]" />
                     <span>Drop file to load configurations</span>

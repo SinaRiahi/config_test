@@ -66,23 +66,23 @@ struct Palette {
 impl Palette {
     fn dark() -> Self {
         Self {
-            bg_canvas: Color32::from_rgb(9, 14, 23),          // #090E17 Main background
-            bg_secondary: Color32::from_rgb(15, 23, 36),      // #0F1724 Secondary background
-            bg_card: Color32::from_rgb(19, 29, 43),          // #131D2B Card and panel background
-            bg_subtle: Color32::from_rgb(27, 41, 58),        // #1B293A Elevated surfaces
-            bg_input: Color32::from_rgb(12, 20, 32),         // #0C1420 Input background
-            border: Color32::from_rgb(38, 53, 72),           // #263548 Default border
-            text_primary: Color32::from_rgb(232, 238, 246),  // #E8EEF6 Primary text
+            bg_canvas: Color32::from_rgb(6, 7, 9),           // #060709 Pure black background
+            bg_secondary: Color32::from_rgb(13, 14, 18),     // #0D0E12 Dark secondary background
+            bg_card: Color32::from_rgb(19, 20, 26),          // #13141A Card and panel background
+            bg_subtle: Color32::from_rgb(27, 29, 38),        // #1B1D26 Elevated surfaces
+            bg_input: Color32::from_rgb(9, 10, 14),          // #090A0E Deep input background
+            border: Color32::from_rgb(37, 40, 54),           // #252836 High-contrast border
+            text_primary: Color32::from_rgb(235, 240, 248),  // #EBF0F8 Crisp primary text
             text_secondary: Color32::from_rgb(148, 163, 184), // #94A3B8 Secondary text
             text_muted: Color32::from_rgb(100, 116, 139),    // #64748B Muted text
             accent_cyan: Color32::from_rgb(34, 211, 238),    // #22D3EE Primary accent (Electric Cyan)
             accent_soft_cyan: Color32::from_rgb(103, 232, 249), // #67E8F9 Secondary accent (Soft Cyan)
             green_fg: Color32::from_rgb(52, 211, 153),       // #34D399 Success / Verified (Emerald)
-            green_bg: Color32::from_rgba_unmultiplied(52, 211, 153, 28),
+            green_bg: Color32::from_rgba_unmultiplied(52, 211, 153, 32),
             red_fg: Color32::from_rgb(251, 113, 133),        // #FB7185 Error / Failed (Rose)
-            red_bg: Color32::from_rgba_unmultiplied(251, 113, 133, 28),
+            red_bg: Color32::from_rgba_unmultiplied(251, 113, 133, 32),
             amber_fg: Color32::from_rgb(251, 191, 36),       // #FBBF24 Warning / Blocked (Amber)
-            amber_bg: Color32::from_rgba_unmultiplied(251, 191, 36, 26),
+            amber_bg: Color32::from_rgba_unmultiplied(251, 191, 36, 30),
         }
     }
 }
@@ -675,32 +675,6 @@ impl eframe::App for VpnCheckerApp {
             )
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
-                    ui.image((self.app_icon_tex.id(), Vec2::new(28.0, 28.0)));
-                    ui.add_space(4.0);
-                    ui.label(
-                        RichText::new("VPN Config Checker")
-                            .strong()
-                            .size(16.5)
-                            .color(p.text_primary),
-                    );
-                    egui::Frame::none()
-                        .fill(p.accent_cyan.gamma_multiply(0.12))
-                        .stroke(Stroke::new(1.0, p.accent_cyan.gamma_multiply(0.35)))
-                        .rounding(Rounding::same(4.0))
-                        .inner_margin(Margin::symmetric(6.0, 2.0))
-                        .show(ui, |ui| {
-                            ui.label(
-                                RichText::new("AI Studio Deep Verifier")
-                                    .size(11.5)
-                                    .monospace()
-                                    .color(p.accent_cyan),
-                            );
-                        });
-
-                    ui.add_space(12.0);
-                    ui.separator();
-                    ui.add_space(6.0);
-
                     if ui
                         .selectable_label(
                             self.input_mode == InputMode::PasteText,
@@ -721,6 +695,10 @@ impl eframe::App for VpnCheckerApp {
                         self.input_mode = InputMode::DiscoverOnline;
                         self.input_collapsed = false;
                     }
+
+                    ui.add_space(8.0);
+                    ui.separator();
+                    ui.add_space(8.0);
 
                     if ui
                         .button(
@@ -1128,14 +1106,14 @@ impl eframe::App for VpnCheckerApp {
                                     ui.add_space(6.0);
                                     ui.push_id("paste_input_scroll", |ui| {
                                         egui::ScrollArea::vertical()
-                                            .max_height(92.0)
+                                            .max_height(240.0)
                                             .show(ui, |ui| {
                                                 ui.add(
                                                     egui::TextEdit::multiline(&mut self.paste_text)
                                                         .font(TextStyle::Monospace)
                                                         .hint_text("vless://... vmess://... trojan://... hysteria2://... ss://... or Base64 subscription text")
                                                         .desired_width(f32::INFINITY)
-                                                        .desired_rows(4),
+                                                        .desired_rows(10),
                                                 );
                                             });
                                     });
@@ -1282,11 +1260,16 @@ impl eframe::App for VpnCheckerApp {
                             } else {
                                 p.accent_cyan
                             })
-                            .desired_height(8.0)
-                            .text(format!(
-                                "{done} / {total_queued} tested ({:.0}%)",
-                                progress * 100.0
-                            )),
+                            .desired_height(24.0)
+                            .text(
+                                egui::RichText::new(format!(
+                                    "  {done} / {total_queued} Tested  ({:.0}%)  ",
+                                    progress * 100.0
+                                ))
+                                .strong()
+                                .color(Color32::from_rgb(5, 5, 8))
+                                .size(13.0),
+                            ),
                     );
                     ui.add_space(8.0);
                 }

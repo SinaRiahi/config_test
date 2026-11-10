@@ -79,6 +79,328 @@ struct IpInfoMeta {
     country: Option<String>,
 }
 
+#[derive(Deserialize)]
+struct IpSbMeta {
+    country_code: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct IpApiMeta {
+    countryCode: Option<String>,
+}
+
+pub fn has_spaced_marker(text: &str, a: &str, b: &str) -> bool {
+    let pat_start = format!("{a} {b} ");
+    let pat_start_pipe = format!("{a} {b}|");
+    let pat_start_dash = format!("{a} {b}-");
+    let pat_mid = format!(" {a} {b} ");
+    let pat_pipe = format!("|{a} {b}|");
+    let pat_pipe_sp = format!("| {a} {b} |");
+    let pat_bracket = format!("[{a} {b}]");
+    let pat_dash = format!("-{a} {b}-");
+
+    text.starts_with(&pat_start)
+        || text.starts_with(&pat_start_pipe)
+        || text.starts_with(&pat_start_dash)
+        || text.contains(&pat_mid)
+        || text.contains(&pat_pipe)
+        || text.contains(&pat_pipe_sp)
+        || text.contains(&pat_bracket)
+        || text.contains(&pat_dash)
+        || text.ends_with(&format!(" {a} {b}"))
+}
+
+pub fn has_iso2_marker(text: &str, code: &str) -> bool {
+    let pat_start = format!("{code} ");
+    let pat_start_dash = format!("{code}-");
+    let pat_start_und = format!("{code}_");
+    let pat_start_pipe = format!("{code}|");
+    let pat_mid = format!(" {code} ");
+    let pat_pipe = format!("|{code}|");
+    let pat_pipe_sp = format!("| {code} |");
+    let pat_bracket = format!("[{code}]");
+    let pat_paren = format!("({code})");
+    let pat_dash = format!("-{code}-");
+    let pat_und = format!("_{code}_");
+
+    text.starts_with(&pat_start)
+        || text.starts_with(&pat_start_dash)
+        || text.starts_with(&pat_start_und)
+        || text.starts_with(&pat_start_pipe)
+        || text.contains(&pat_mid)
+        || text.contains(&pat_pipe)
+        || text.contains(&pat_pipe_sp)
+        || text.contains(&pat_bracket)
+        || text.contains(&pat_paren)
+        || text.contains(&pat_dash)
+        || text.contains(&pat_und)
+        || text.ends_with(&format!(" {code}"))
+        || text.ends_with(&format!("_{code}"))
+}
+
+/// Detects country code and whether it is a supported AI Studio region from
+/// configuration name, server address, and SNI headers.
+pub fn detect_region_from_metadata(name: &str, server: &str, sni: &str) -> Option<(String, bool)> {
+    let combined = format!("{name} {server} {sni}");
+    let combined_lower = combined.to_lowercase();
+
+    // 1. Explicit Blocked Territories First (Flags, spaced letters, keywords, ISPs, cities, TLDs)
+    // Flags
+    if combined.contains('🇮🇷') {
+        return Some(("IR".to_string(), false));
+    }
+    if combined.contains('🇷🇺') {
+        return Some(("RU".to_string(), false));
+    }
+    if combined.contains('🇨🇳') || combined.contains('🇭🇰') || combined.contains('🇲🇴') {
+        return Some(("CN".to_string(), false));
+    }
+    if combined.contains('🇧🇾') {
+        return Some(("BY".to_string(), false));
+    }
+    if combined.contains('🇨🇺') {
+        return Some(("CU".to_string(), false));
+    }
+    if combined.contains('🇰🇵') {
+        return Some(("KP".to_string(), false));
+    }
+    if combined.contains('🇸🇾') {
+        return Some(("SY".to_string(), false));
+    }
+
+    // Iran
+    let is_iran = combined_lower.contains("iran")
+        || combined_lower.contains("tehran")
+        || combined_lower.contains("shiraz")
+        || combined_lower.contains("isfahan")
+        || combined_lower.contains("tabriz")
+        || combined_lower.contains("mashhad")
+        || combined_lower.contains("karaj")
+        || combined_lower.contains("irancell")
+        || combined_lower.contains("mci")
+        || combined_lower.contains("hamrah")
+        || combined_lower.contains("rightel")
+        || combined_lower.contains("shatel")
+        || combined_lower.contains("asiatech")
+        || combined_lower.contains("mokhaberat")
+        || combined_lower.contains(".ir/")
+        || combined_lower.contains(".ir:")
+        || combined_lower.ends_with(".ir")
+        || combined.contains("ایران")
+        || combined.contains("تهران")
+        || combined.contains("همراه")
+        || combined.contains("ایرانسل")
+        || has_iso2_marker(&combined, "IR")
+        || has_spaced_marker(&combined, "I", "R");
+
+    if is_iran {
+        return Some(("IR".to_string(), false));
+    }
+
+    // Russia
+    let is_russia = combined_lower.contains("russia")
+        || combined_lower.contains("russian")
+        || combined_lower.contains("moscow")
+        || combined_lower.contains("moskva")
+        || combined_lower.contains("saint petersburg")
+        || combined_lower.contains("saint-petersburg")
+        || combined_lower.contains("spb")
+        || combined_lower.contains("piter")
+        || combined_lower.contains("novosibirsk")
+        || combined_lower.contains("rostelecom")
+        || combined_lower.contains("megafon")
+        || combined_lower.contains("beeline")
+        || combined_lower.contains(".ru/")
+        || combined_lower.contains(".ru:")
+        || combined_lower.ends_with(".ru")
+        || combined_lower.ends_with(".su")
+        || combined.contains("россия")
+        || combined.contains("москва")
+        || combined.contains("питер")
+        || combined.contains("рф")
+        || has_iso2_marker(&combined, "RU")
+        || has_spaced_marker(&combined, "R", "U");
+
+    if is_russia {
+        return Some(("RU".to_string(), false));
+    }
+
+    // China
+    let is_china = combined_lower.contains("china")
+        || combined_lower.contains("beijing")
+        || combined_lower.contains("shanghai")
+        || combined_lower.contains("guangzhou")
+        || combined_lower.contains("shenzhen")
+        || combined_lower.contains("hong kong")
+        || combined_lower.contains("hongkong")
+        || combined_lower.contains(".cn/")
+        || combined_lower.contains(".cn:")
+        || combined_lower.ends_with(".cn")
+        || combined.contains("中国")
+        || combined.contains("北京")
+        || combined.contains("上海")
+        || has_iso2_marker(&combined, "CN")
+        || has_iso2_marker(&combined, "HK")
+        || has_spaced_marker(&combined, "C", "N");
+
+    if is_china {
+        return Some(("CN".to_string(), false));
+    }
+
+    // Belarus, Cuba, North Korea, Syria
+    if combined_lower.contains("belarus")
+        || combined_lower.contains("minsk")
+        || has_iso2_marker(&combined, "BY")
+        || has_spaced_marker(&combined, "B", "Y")
+    {
+        return Some(("BY".to_string(), false));
+    }
+    if combined_lower.contains("cuba")
+        || combined_lower.contains("havana")
+        || has_iso2_marker(&combined, "CU")
+        || has_spaced_marker(&combined, "C", "U")
+    {
+        return Some(("CU".to_string(), false));
+    }
+    if combined_lower.contains("north korea")
+        || combined_lower.contains("pyongyang")
+        || has_iso2_marker(&combined, "KP")
+        || has_spaced_marker(&combined, "K", "P")
+    {
+        return Some(("KP".to_string(), false));
+    }
+    if combined_lower.contains("syria")
+        || combined_lower.contains("damascus")
+        || has_iso2_marker(&combined, "SY")
+        || has_spaced_marker(&combined, "S", "Y")
+    {
+        return Some(("SY".to_string(), false));
+    }
+
+    // 2. Supported AI Studio Regions
+    // Germany
+    if combined.contains('🇩🇪')
+        || combined_lower.contains("germany")
+        || combined_lower.contains("frankfurt")
+        || combined_lower.contains("hetzner")
+        || combined_lower.contains(".de")
+        || has_iso2_marker(&combined, "DE")
+        || has_spaced_marker(&combined, "D", "E")
+    {
+        return Some(("DE".to_string(), true));
+    }
+    // United States
+    if combined.contains('🇺🇸')
+        || combined_lower.contains("united states")
+        || combined_lower.contains("usa")
+        || combined_lower.contains("america")
+        || combined_lower.contains("california")
+        || combined_lower.contains("ashburn")
+        || combined_lower.contains("chicago")
+        || has_iso2_marker(&combined, "US")
+        || has_spaced_marker(&combined, "U", "S")
+    {
+        return Some(("US".to_string(), true));
+    }
+    // United Kingdom
+    if combined.contains('🇬🇧')
+        || combined_lower.contains("united kingdom")
+        || combined_lower.contains("london")
+        || combined_lower.contains("britain")
+        || has_iso2_marker(&combined, "GB")
+        || has_iso2_marker(&combined, "UK")
+        || has_spaced_marker(&combined, "G", "B")
+        || has_spaced_marker(&combined, "U", "K")
+    {
+        return Some(("GB".to_string(), true));
+    }
+    // Netherlands
+    if combined.contains('🇳🇱')
+        || combined_lower.contains("netherlands")
+        || combined_lower.contains("amsterdam")
+        || has_iso2_marker(&combined, "NL")
+        || has_spaced_marker(&combined, "N", "L")
+    {
+        return Some(("NL".to_string(), true));
+    }
+    // France
+    if combined.contains('🇫🇷')
+        || combined_lower.contains("france")
+        || combined_lower.contains("paris")
+        || combined_lower.contains("ovh")
+        || has_iso2_marker(&combined, "FR")
+        || has_spaced_marker(&combined, "F", "R")
+    {
+        return Some(("FR".to_string(), true));
+    }
+    // Singapore
+    if combined.contains('🇸🇬')
+        || combined_lower.contains("singapore")
+        || has_iso2_marker(&combined, "SG")
+        || has_spaced_marker(&combined, "S", "G")
+    {
+        return Some(("SG".to_string(), true));
+    }
+    // Japan
+    if combined.contains('🇯🇵')
+        || combined_lower.contains("japan")
+        || combined_lower.contains("tokyo")
+        || combined_lower.contains("osaka")
+        || has_iso2_marker(&combined, "JP")
+        || has_spaced_marker(&combined, "J", "P")
+    {
+        return Some(("JP".to_string(), true));
+    }
+    // Turkey
+    if combined.contains('🇹🇷')
+        || combined_lower.contains("turkey")
+        || combined_lower.contains("turkiye")
+        || combined_lower.contains("istanbul")
+        || has_iso2_marker(&combined, "TR")
+        || has_spaced_marker(&combined, "T", "R")
+    {
+        return Some(("TR".to_string(), true));
+    }
+    // Finland
+    if combined.contains('🇫🇮')
+        || combined_lower.contains("finland")
+        || combined_lower.contains("helsinki")
+        || has_iso2_marker(&combined, "FI")
+        || has_spaced_marker(&combined, "F", "I")
+    {
+        return Some(("FI".to_string(), true));
+    }
+    // Sweden
+    if combined.contains('🇸🇪')
+        || combined_lower.contains("sweden")
+        || combined_lower.contains("stockholm")
+        || has_iso2_marker(&combined, "SE")
+        || has_spaced_marker(&combined, "S", "E")
+    {
+        return Some(("SE".to_string(), true));
+    }
+    // Canada
+    if combined.contains('🇨🇦')
+        || combined_lower.contains("canada")
+        || combined_lower.contains("toronto")
+        || has_iso2_marker(&combined, "CA")
+        || has_spaced_marker(&combined, "C", "A")
+    {
+        return Some(("CA".to_string(), true));
+    }
+    // South Korea
+    if combined.contains('🇰🇷')
+        || combined_lower.contains("korea")
+        || combined_lower.contains("seoul")
+        || has_iso2_marker(&combined, "KR")
+        || has_spaced_marker(&combined, "K", "R")
+    {
+        return Some(("KR".to_string(), true));
+    }
+
+    None
+}
+
 fn get_free_port() -> Result<u16, String> {
     let listener = TcpListener::bind("127.0.0.1:0").map_err(|e| e.to_string())?;
     let port = listener.local_addr().map_err(|e| e.to_string())?.port();
@@ -325,6 +647,27 @@ pub async fn run_single_test(
         };
     }
 
+    let parsed_server = parsed
+        .outbound
+        .get("server")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let parsed_sni = parsed
+        .outbound
+        .pointer("/tls/server_name")
+        .or_else(|| parsed.outbound.pointer("/transport/headers/Host"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    let pre_meta = detect_region_from_metadata(&parsed.name, &parsed_server, &parsed_sni);
+    let (pre_country, pre_is_blocked) = match pre_meta {
+        Some((ref c, false)) => (Some(c.clone()), true),
+        Some((ref c, true)) => (Some(c.clone()), false),
+        None => (None, false),
+    };
+
     let proxy_url = format!("http://127.0.0.1:{port}");
     let test_res = async {
         let proxy = reqwest::Proxy::all(&proxy_url).map_err(|e| e.to_string())?;
@@ -337,29 +680,56 @@ pub async fn run_single_test(
             .build()
             .map_err(|e| e.to_string())?;
 
-        // Stage 1: Multi-source Egress Country Check (ipinfo.io + Cloudflare fallback)
+        // Fast-path: If the config remark explicitly declares a blocked region (Iran, Russia, China, etc.),
+        // flag it immediately as RegionBlocked without allowing it to slip into Verified!
+        if pre_is_blocked {
+            let country_tag = pre_country.clone().unwrap_or_else(|| "Blocked".to_string());
+            return Ok((
+                pre_country,
+                false,
+                None,
+                TestStatus::RegionBlocked,
+                format!("Blocked region [{country_tag}] declared in server remark/host/SNI"),
+            ));
+        }
+
+        // Stage 1: Multi-source Egress Country Check (Cloudflare, IP.sb, IPInfo, IP-API)
         let mut detected_country: Option<String> = None;
-        if let Ok(resp) = client.get(IPINFO_FALLBACK_URL).send().await {
-            if let Ok(meta) = resp.json::<IpInfoMeta>().await {
+        if let Ok(geo_resp) = client.get(GEO_CHECK_URL).send().await {
+            if let Ok(meta) = geo_resp.json::<CloudflareMeta>().await {
                 detected_country = meta.country;
             }
         }
         if detected_country.is_none() {
-            if let Ok(geo_resp) = client.get(GEO_CHECK_URL).send().await {
-                if let Ok(meta) = geo_resp.json::<CloudflareMeta>().await {
+            if let Ok(sb_resp) = client.get("https://api.ip.sb/geoip").send().await {
+                if let Ok(meta) = sb_resp.json::<IpSbMeta>().await {
+                    detected_country = meta.country_code;
+                }
+            }
+        }
+        if detected_country.is_none() {
+            if let Ok(resp) = client.get(IPINFO_FALLBACK_URL).send().await {
+                if let Ok(meta) = resp.json::<IpInfoMeta>().await {
                     detected_country = meta.country;
+                }
+            }
+        }
+        if detected_country.is_none() {
+            if let Ok(api_resp) = client.get("http://ip-api.com/json").send().await {
+                if let Ok(meta) = api_resp.json::<IpApiMeta>().await {
+                    detected_country = meta.countryCode;
                 }
             }
         }
 
         let is_supported = match &detected_country {
             Some(c) => is_country_supported(c),
-            None => true,
+            None => pre_country.as_deref().map(is_country_supported).unwrap_or(true),
         };
 
         if let Some(c) = &detected_country {
-            if !is_supported {
-                let detail = format!("Unsupported egress country [{c}]");
+            if !is_country_supported(c) {
+                let detail = format!("Unsupported egress country [{c}] detected via GeoIP probe");
                 return Ok((
                     detected_country,
                     false,
@@ -384,10 +754,22 @@ pub async fn run_single_test(
         let status = web_resp.status();
         let final_url = web_resp.url().to_string();
 
+        // HTTP 403 Forbidden or 451 Unavailable For Legal Reasons from AI Studio IS a region/geoblock!
+        if status.as_u16() == 403 || status.as_u16() == 451 {
+            let detail = format!("AI Studio HTTP {} Geo-restricted IP Block", status.as_u16());
+            return Ok((
+                detected_country.or(pre_country),
+                false,
+                Some(latency_ms),
+                TestStatus::RegionBlocked,
+                detail,
+            ));
+        }
+
         if !status.is_success() {
             let detail = format!("AI Studio returned HTTP {}", status.as_u16());
             return Ok((
-                detected_country,
+                detected_country.or(pre_country),
                 is_supported,
                 Some(latency_ms),
                 TestStatus::Failed,
@@ -399,13 +781,14 @@ pub async fn run_single_test(
 
         if is_redirected_to_regions_doc(&final_url, &body_text) {
             let detail = {
-                let c_tag = detected_country.as_deref().unwrap_or("??");
-                format!(
-                    "Redirected to Available Regions Docs [{c_tag} IP flagged by Google]"
-                )
+                let c_tag = detected_country
+                    .as_deref()
+                    .or(pre_country.as_deref())
+                    .unwrap_or("??");
+                format!("Redirected to Available Regions Docs [{c_tag} IP flagged by Google]")
             };
             return Ok((
-                detected_country,
+                detected_country.or(pre_country),
                 false,
                 Some(latency_ms),
                 TestStatus::RegionBlocked,
@@ -420,7 +803,7 @@ pub async fn run_single_test(
                 let api_body = api_resp.text().await.unwrap_or_default();
                 if let Err(region_err) = check_gemini_api_location_gate(code, &api_body) {
                     return Ok((
-                        detected_country,
+                        detected_country.or(pre_country),
                         false,
                         Some(latency_ms),
                         TestStatus::RegionBlocked,
@@ -431,7 +814,7 @@ pub async fn run_single_test(
             Err(e) => {
                 let detail = format!("AI Studio loaded, but Gemini API unreachable: {e}");
                 return Ok((
-                    detected_country,
+                    detected_country.or(pre_country),
                     is_supported,
                     Some(latency_ms),
                     TestStatus::ApiBlocked,
@@ -440,12 +823,13 @@ pub async fn run_single_test(
             }
         }
 
+        let final_country = detected_country.or(pre_country);
         let detail = {
-            let country_str = detected_country.as_deref().unwrap_or("Verified");
+            let country_str = final_country.as_deref().unwrap_or("Verified");
             format!("Verified [{country_str}] · App OK (No Docs Redirect) & Google GeoIP Passed")
         };
         Ok((
-            detected_country,
+            final_country,
             true,
             Some(latency_ms),
             TestStatus::Working,
@@ -547,5 +931,32 @@ mod tests {
 
         let allowed_json = r#"{"error":{"code":400,"message":"API key not valid. Please pass a valid API key.","status":"INVALID_ARGUMENT"}}"#;
         assert!(check_gemini_api_location_gate(400, allowed_json).is_ok());
+    }
+
+    #[test]
+    fn test_detect_blocked_regions() {
+        // Iranian formats
+        let ir1 = detect_region_from_metadata("I R 211361 | ⚡ | Telegram = t.me/SOSKeyNET", "192.168.1.1", "");
+        assert_eq!(ir1, Some(("IR".to_string(), false)));
+
+        let ir2 = detect_region_from_metadata("Iran Tehran VIP MCI", "server.ir", "sni.com");
+        assert_eq!(ir2, Some(("IR".to_string(), false)));
+
+        let ir3 = detect_region_from_metadata("🇮🇷 Hamrah Aval Fast", "45.12.34.5", "mci.ir");
+        assert_eq!(ir3, Some(("IR".to_string(), false)));
+
+        // Russian formats
+        let ru1 = detect_region_from_metadata("R U 89012 | Russia Moscow Node", "moscow.ru", "");
+        assert_eq!(ru1, Some(("RU".to_string(), false)));
+
+        let ru2 = detect_region_from_metadata("🇷🇺 Rostelecom Saint Petersburg", "1.2.3.4", "mail.ru");
+        assert_eq!(ru2, Some(("RU".to_string(), false)));
+
+        // Supported regions
+        let de = detect_region_from_metadata("D E 211363 | ⚡ | Telegram = t.me/SOSKeyNET", "hetzner.de", "");
+        assert_eq!(de, Some(("DE".to_string(), true)));
+
+        let us = detect_region_from_metadata("U S 999 | Ashburn USA", "us-server.com", "");
+        assert_eq!(us, Some(("US".to_string(), true)));
     }
 }

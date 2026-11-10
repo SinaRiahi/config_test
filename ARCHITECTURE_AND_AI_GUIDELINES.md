@@ -49,19 +49,21 @@ Google AI Studio is officially supported in over 180 countries and territories (
 
 ---
 
-## 3. UI & Design Principles (Midnight Signal Color System)
+---
 
-The visual design follows the **Midnight Signal** aesthetic — an elegant, technical color system inspired by premium network diagnostics and infrastructure monitoring dashboards:
+## 3. UI & Design Principles (Pure Black & Midnight Signal System)
 
-- **Strict Dark Mode ONLY**:
-  - All light mode styling, theme toggles, and light-theme CSS/logic have been completely eliminated. Both the Web Companion and native Rust desktop app run exclusively in dark mode.
+The visual design follows an enhanced, distraction-free technical dashboard aesthetic:
+
+- **Strict Dark Mode ONLY (Pure Black & Graphite Surfaces)**:
+  - All light mode styling, theme toggles, and light-theme CSS/logic have been completely eliminated. Both the Web Companion and native Rust desktop app run exclusively in pure black dark mode.
 - **Centralized Design Tokens (`src/theme.ts` & `@theme` in `src/index.css`)**:
   - **Core Backgrounds**:
-    - Main background: `#090E17`
-    - Secondary background: `#0F1724`
-    - Card and panel background: `#131D2B`
-    - Elevated surfaces: `#1B293A`
-    - Input background: `#0C1420`
+    - Main background: `#060709` (Pure Black Canvas)
+    - Secondary background: `#0D0E12` (Dark Charcoal)
+    - Card and panel background: `#13141A` (Dark Graphite)
+    - Elevated surfaces: `#1B1D26`
+    - Input background: `#090A0E` (Deep Recessed Editor)
   - **Accents**:
     - Primary accent: `#22D3EE` (Electric Cyan)
     - Secondary accent: `#67E8F9` (Soft Cyan)
@@ -75,14 +77,17 @@ The visual design follows the **Midnight Signal** aesthetic — an elegant, tech
     - Secondary text: `#94A3B8`
     - Muted text: `#64748B`
   - **Borders**:
-    - Default border: `#263548`
+    - Default border: `#252836`
     - Focus border: `#22D3EE`
-- **Color Usage Rules**:
-  - Electric Cyan (`#22D3EE`) is the primary interactive accent for primary buttons (with `#090E17` dark text), active indicators, focus borders, and progress indicators.
-  - Emerald (`#34D399`) is reserved exclusively for successful verification states.
-  - Rose (`#FB7185`) marks dead proxies, unreachable servers, and handshake timeouts.
-  - Amber (`#FBBF24`) indicates regional restrictions and docs redirects.
-  - Selected table rows have a subtle cyan-tinted highlight (`#1B293A` with `#22D3EE` left border).
+- **Minimalist Header & Workstation Layout**:
+  - Uncluttered Header: Removed redundant app icon, name labels, and badges from within the active application toolbar. The header focuses directly on the functional mode switcher (`Paste / Load Configs` vs `Online Feeds`), navigation tabs, and primary action controls (`Verify Queue`, `Settings`).
+  - Thicker Progress Bar: High-contrast 28px progress bar with centered bold white tabular typography (`drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]`) providing instant readability over both the filled bar and dark track.
+  - Scroll-Wheel Incrementing Fields: Concurrency (threads) and timeout controls support mousewheel scrolling to increment/decrement values smoothly, with internal browser spin buttons removed.
+  - Expanded Input Area: Monospace configuration input area expanded to 10 rows / 240px min-height for an organized, spacious workstation.
+- **Multi-Signal Blocked Region Detection Strategy**:
+  - Pre-Filter Signal (Metadata & Remark Heuristics): Inspects configuration names, remarks, hostnames, and SNI headers for explicit blocked territory indicators (`IR`, `RU`, `CN`, `HK`, `MO`, `BY`, `CU`, `KP`, `SY`), national flags (🇮🇷, 🇷🇺, 🇨🇳, 🇧🇾, 🇨🇺, 🇰🇵, 🇸🇾), spaced ISO codes (`I R`, `R U`, `C N`), telecom providers (MCI, Irancell, Hamrah, Rostelecom, MegaFon, Beeline), and regional TLDs (`.ir`, `.ru`, `.su`, `.by`, `.cn`).
+  - Multi-Source GeoIP Probe: Queries Cloudflare, IP.sb, IPInfo, and IP-API concurrently through proxy outbounds.
+  - Google Geo-Restriction Catch: Traps HTTP 403 Forbidden, HTTP 451, and `available-regions` documentation redirects from `aistudio.google.com`, plus Google's internal Gemini API location gate (`User location is not supported`). Configs from blocked territories are decisively categorized under `Docs / Region Blocked`.
 - **Tabular Figures & Monospace**:
   - Tabular numerals (`font-mono tabular-nums`) for all latency, IP, port, and counter figures.
   - Monospace code styling for raw URIs and outbound JSON blocks.

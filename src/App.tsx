@@ -322,15 +322,27 @@ export default function App() {
       const lower = `${cfg.name} ${cfg.server}`.toLowerCase();
 
       const isExplicitlyBlockedRegion =
-        settings.checkGeoIp &&
-        (lower.includes('iran') ||
-          lower.includes('.ir') ||
-          lower.includes('china') ||
-          lower.includes('.cn') ||
-          lower.includes('russia') ||
-          lower.includes('.ru') ||
-          lower.includes('hk') ||
-          lower.includes('hong kong'));
+        !cfg.isSupportedRegion ||
+        cfg.countryCode === 'IR' ||
+        cfg.countryCode === 'RU' ||
+        cfg.countryCode === 'CN' ||
+        cfg.countryCode === 'BY' ||
+        cfg.countryCode === 'CU' ||
+        cfg.countryCode === 'KP' ||
+        cfg.countryCode === 'SY' ||
+        (settings.checkGeoIp &&
+          (lower.includes('iran') ||
+            lower.includes('tehran') ||
+            lower.includes('mci') ||
+            lower.includes('irancell') ||
+            lower.includes('.ir') ||
+            lower.includes('russia') ||
+            lower.includes('moscow') ||
+            lower.includes('.ru') ||
+            lower.includes('china') ||
+            lower.includes('.cn') ||
+            lower.includes('hk') ||
+            lower.includes('hong kong')));
 
       const isDocsRedirectBlocked =
         settings.checkAiStudioWeb && !isExplicitlyBlockedRegion && idx % 7 === 4;

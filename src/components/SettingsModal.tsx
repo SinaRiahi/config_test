@@ -276,10 +276,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-[#0C1420] border border-[#263548] rounded-lg p-2.5 flex items-center justify-between">
+            <div className="bg-[#090A0E] border border-[#252836] rounded-lg p-2.5 flex items-center justify-between">
               <div>
-                <span className="text-xs text-[#E8EEF6] block">Threads</span>
-                <span className="text-[11px] text-[#64748B]">Simultaneous tests</span>
+                <span className="text-xs text-[#E8EEF6] block font-medium">Threads</span>
+                <span className="text-[11px] text-[#64748B]">Scroll to change (1–50)</span>
               </div>
               <input
                 type="number"
@@ -292,27 +292,45 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     concurrency: Math.max(1, Math.min(50, Number(e.target.value) || 1)),
                   }))
                 }
-                className="w-16 bg-[#131D2B] border border-[#263548] focus:border-[#22D3EE] rounded px-2 py-1 text-xs font-mono font-bold text-center text-[#E8EEF6] focus:outline-none tabular-nums"
+                onWheel={(e) => {
+                  e.preventDefault();
+                  const step = e.deltaY < 0 ? 1 : -1;
+                  setSettings((prev) => ({
+                    ...prev,
+                    concurrency: Math.max(1, Math.min(50, prev.concurrency + step)),
+                  }));
+                }}
+                title="Scroll with mouse wheel to increase or decrease threads"
+                className="w-16 bg-[#13141A] border border-[#252836] focus:border-[#22D3EE] rounded px-2 py-1 text-xs font-mono font-bold text-center text-[#E8EEF6] focus:outline-none tabular-nums cursor-ns-resize hover:border-[#22D3EE]/50 select-none"
               />
             </div>
 
-            <div className="bg-[#0C1420] border border-[#263548] rounded-lg p-2.5 flex items-center justify-between">
+            <div className="bg-[#090A0E] border border-[#252836] rounded-lg p-2.5 flex items-center justify-between">
               <div>
-                <span className="text-xs text-[#E8EEF6] block">Timeout (s)</span>
-                <span className="text-[11px] text-[#64748B]">Max socket wait</span>
+                <span className="text-xs text-[#E8EEF6] block font-medium">Timeout (s)</span>
+                <span className="text-[11px] text-[#64748B]">Scroll to change (3–60s)</span>
               </div>
               <input
                 type="number"
                 min={3}
-                max={30}
+                max={60}
                 value={settings.timeoutSec}
                 onChange={(e) =>
                   setSettings((prev) => ({
                     ...prev,
-                    timeoutSec: Math.max(3, Math.min(30, Number(e.target.value) || 10)),
+                    timeoutSec: Math.max(3, Math.min(60, Number(e.target.value) || 10)),
                   }))
                 }
-                className="w-16 bg-[#131D2B] border border-[#263548] focus:border-[#22D3EE] rounded px-2 py-1 text-xs font-mono font-bold text-center text-[#E8EEF6] focus:outline-none tabular-nums"
+                onWheel={(e) => {
+                  e.preventDefault();
+                  const step = e.deltaY < 0 ? 1 : -1;
+                  setSettings((prev) => ({
+                    ...prev,
+                    timeoutSec: Math.max(3, Math.min(60, prev.timeoutSec + step)),
+                  }));
+                }}
+                title="Scroll with mouse wheel to increase or decrease timeout"
+                className="w-16 bg-[#13141A] border border-[#252836] focus:border-[#22D3EE] rounded px-2 py-1 text-xs font-mono font-bold text-center text-[#E8EEF6] focus:outline-none tabular-nums cursor-ns-resize hover:border-[#22D3EE]/50 select-none"
               />
             </div>
           </div>

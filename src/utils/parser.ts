@@ -214,42 +214,287 @@ function hashString(str: string): string {
   return (h >>> 0).toString(36);
 }
 
-function guessCountryFromRemark(name: string, server: string): { code: string; name: string; flag: string } {
-  const lower = `${name} ${server}`.toLowerCase();
-  if (lower.includes('usa') || lower.includes('us-') || lower.includes('.us') || lower.includes('america') || lower.includes('sanjose') || lower.includes('chicago')) {
-    return { code: 'US', name: 'United States', flag: '🇺🇸' };
+function hasSpacedMarker(text: string, a: string, b: string): boolean {
+  const patStart = `${a} ${b} `;
+  const patPipe = `|${a} ${b}|`;
+  const patPipeSp = `| ${a} ${b} |`;
+  const patBracket = `[${a} ${b}]`;
+  const patMid = ` ${a} ${b} `;
+  return (
+    text.startsWith(patStart) ||
+    text.startsWith(`${a} ${b}|`) ||
+    text.startsWith(`${a} ${b}-`) ||
+    text.includes(patPipe) ||
+    text.includes(patPipeSp) ||
+    text.includes(patBracket) ||
+    text.includes(patMid) ||
+    text.endsWith(` ${a} ${b}`)
+  );
+}
+
+function hasIso2Marker(text: string, code: string): boolean {
+  return (
+    text.startsWith(`${code} `) ||
+    text.startsWith(`${code}-`) ||
+    text.startsWith(`${code}_`) ||
+    text.startsWith(`${code}|`) ||
+    text.includes(` ${code} `) ||
+    text.includes(`|${code}|`) ||
+    text.includes(`| ${code} |`) ||
+    text.includes(`[${code}]`) ||
+    text.includes(`(${code})`) ||
+    text.includes(`-${code}-`) ||
+    text.includes(`_${code}_`) ||
+    text.endsWith(` ${code}`) ||
+    text.endsWith(`_${code}`)
+  );
+}
+
+export function guessCountryFromRemark(name: string, server: string = '', sni: string = ''): {
+  code: string;
+  name: string;
+  flag: string;
+  supported: boolean;
+} {
+  const combined = `${name} ${server} ${sni}`;
+  const lower = combined.toLowerCase();
+
+  // 1. Explicit Blocked Territories First
+  // Iran
+  if (
+    combined.includes('🇮🇷') ||
+    lower.includes('iran') ||
+    lower.includes('tehran') ||
+    lower.includes('shiraz') ||
+    lower.includes('isfahan') ||
+    lower.includes('tabriz') ||
+    lower.includes('mashhad') ||
+    lower.includes('mci') ||
+    lower.includes('hamrah') ||
+    lower.includes('irancell') ||
+    lower.includes('rightel') ||
+    lower.includes('shatel') ||
+    lower.includes('asiatech') ||
+    lower.includes('mokhaberat') ||
+    lower.includes('.ir/') ||
+    lower.includes('.ir:') ||
+    lower.endsWith('.ir') ||
+    combined.includes('ایران') ||
+    combined.includes('تهران') ||
+    hasIso2Marker(combined, 'IR') ||
+    hasSpacedMarker(combined, 'I', 'R')
+  ) {
+    return { code: 'IR', name: 'Iran (Blocked)', flag: '🇮🇷', supported: false };
   }
-  if (lower.includes('germany') || lower.includes('de-') || lower.includes('.de') || lower.includes('frankfurt') || lower.includes('hetzner')) {
-    return { code: 'DE', name: 'Germany', flag: '🇩🇪' };
+
+  // Russia
+  if (
+    combined.includes('🇷🇺') ||
+    lower.includes('russia') ||
+    lower.includes('russian') ||
+    lower.includes('moscow') ||
+    lower.includes('moskva') ||
+    lower.includes('saint petersburg') ||
+    lower.includes('piter') ||
+    lower.includes('rostelecom') ||
+    lower.includes('megafon') ||
+    lower.includes('beeline') ||
+    lower.includes('.ru/') ||
+    lower.includes('.ru:') ||
+    lower.endsWith('.ru') ||
+    lower.endsWith('.su') ||
+    combined.includes('россия') ||
+    combined.includes('москва') ||
+    combined.includes('рф') ||
+    hasIso2Marker(combined, 'RU') ||
+    hasSpacedMarker(combined, 'R', 'U')
+  ) {
+    return { code: 'RU', name: 'Russia (Blocked)', flag: '🇷🇺', supported: false };
   }
-  if (lower.includes('uk') || lower.includes('london') || lower.includes('.gb') || lower.includes('britain')) {
-    return { code: 'GB', name: 'United Kingdom', flag: '🇬🇧' };
+
+  // China
+  if (
+    combined.includes('🇨🇳') ||
+    combined.includes('🇭🇰') ||
+    combined.includes('🇲🇴') ||
+    lower.includes('china') ||
+    lower.includes('beijing') ||
+    lower.includes('shanghai') ||
+    lower.includes('guangzhou') ||
+    lower.includes('shenzhen') ||
+    lower.includes('hong kong') ||
+    lower.includes('hongkong') ||
+    lower.includes('.cn/') ||
+    lower.includes('.cn:') ||
+    lower.endsWith('.cn') ||
+    combined.includes('中国') ||
+    combined.includes('北京') ||
+    hasIso2Marker(combined, 'CN') ||
+    hasIso2Marker(combined, 'HK') ||
+    hasSpacedMarker(combined, 'C', 'N')
+  ) {
+    return { code: 'CN', name: 'China (Blocked)', flag: '🇨🇳', supported: false };
   }
-  if (lower.includes('netherland') || lower.includes('nl-') || lower.includes('.nl') || lower.includes('amsterdam')) {
-    return { code: 'NL', name: 'Netherlands', flag: '🇳🇱' };
+
+  // Belarus, Cuba, North Korea, Syria
+  if (combined.includes('🇧🇾') || lower.includes('belarus') || lower.includes('minsk') || hasIso2Marker(combined, 'BY') || hasSpacedMarker(combined, 'B', 'Y')) {
+    return { code: 'BY', name: 'Belarus (Blocked)', flag: '🇧🇾', supported: false };
   }
-  if (lower.includes('singapore') || lower.includes('sg-') || lower.includes('.sg')) {
-    return { code: 'SG', name: 'Singapore', flag: '🇸🇬' };
+  if (combined.includes('🇨🇺') || lower.includes('cuba') || lower.includes('havana') || hasIso2Marker(combined, 'CU') || hasSpacedMarker(combined, 'C', 'U')) {
+    return { code: 'CU', name: 'Cuba (Blocked)', flag: '🇨🇺', supported: false };
   }
-  if (lower.includes('japan') || lower.includes('tokyo') || lower.includes('jp-') || lower.includes('.jp')) {
-    return { code: 'JP', name: 'Japan', flag: '🇯🇵' };
+  if (combined.includes('🇰🇵') || lower.includes('north korea') || lower.includes('pyongyang') || hasIso2Marker(combined, 'KP') || hasSpacedMarker(combined, 'K', 'P')) {
+    return { code: 'KP', name: 'North Korea (Blocked)', flag: '🇰🇵', supported: false };
   }
-  if (lower.includes('france') || lower.includes('paris') || lower.includes('roubaix') || lower.includes('.fr')) {
-    return { code: 'FR', name: 'France', flag: '🇫🇷' };
+  if (combined.includes('🇸🇾') || lower.includes('syria') || lower.includes('damascus') || hasIso2Marker(combined, 'SY') || hasSpacedMarker(combined, 'S', 'Y')) {
+    return { code: 'SY', name: 'Syria (Blocked)', flag: '🇸🇾', supported: false };
   }
-  if (lower.includes('canada') || lower.includes('toronto') || lower.includes('.ca')) {
-    return { code: 'CA', name: 'Canada', flag: '🇨🇦' };
+
+  // 2. Supported Regions
+  // Germany
+  if (
+    combined.includes('🇩🇪') ||
+    lower.includes('germany') ||
+    lower.includes('frankfurt') ||
+    lower.includes('hetzner') ||
+    lower.includes('.de') ||
+    hasIso2Marker(combined, 'DE') ||
+    hasSpacedMarker(combined, 'D', 'E')
+  ) {
+    return { code: 'DE', name: 'Germany', flag: '🇩🇪', supported: true };
   }
-  if (lower.includes('iran') || lower.includes('tehran') || lower.includes('ir-') || lower.includes('.ir')) {
-    return { code: 'IR', name: 'Iran (Blocked)', flag: '🇮🇷' };
+
+  // United States
+  if (
+    combined.includes('🇺🇸') ||
+    lower.includes('united states') ||
+    lower.includes('usa') ||
+    lower.includes('america') ||
+    lower.includes('california') ||
+    lower.includes('ashburn') ||
+    lower.includes('chicago') ||
+    hasIso2Marker(combined, 'US') ||
+    hasSpacedMarker(combined, 'U', 'S')
+  ) {
+    return { code: 'US', name: 'United States', flag: '🇺🇸', supported: true };
   }
-  if (lower.includes('china') || lower.includes('cn-') || lower.includes('.cn')) {
-    return { code: 'CN', name: 'China (Blocked)', flag: '🇨🇳' };
+
+  // United Kingdom
+  if (
+    combined.includes('🇬🇧') ||
+    lower.includes('united kingdom') ||
+    lower.includes('london') ||
+    lower.includes('britain') ||
+    hasIso2Marker(combined, 'GB') ||
+    hasIso2Marker(combined, 'UK') ||
+    hasSpacedMarker(combined, 'G', 'B') ||
+    hasSpacedMarker(combined, 'U', 'K')
+  ) {
+    return { code: 'GB', name: 'United Kingdom', flag: '🇬🇧', supported: true };
   }
-  if (lower.includes('russia') || lower.includes('moscow') || lower.includes('.ru')) {
-    return { code: 'RU', name: 'Russia (Blocked)', flag: '🇷🇺' };
+
+  // Netherlands
+  if (
+    combined.includes('🇳🇱') ||
+    lower.includes('netherlands') ||
+    lower.includes('amsterdam') ||
+    hasIso2Marker(combined, 'NL') ||
+    hasSpacedMarker(combined, 'N', 'L')
+  ) {
+    return { code: 'NL', name: 'Netherlands', flag: '🇳🇱', supported: true };
   }
-  return { code: 'US', name: 'United States', flag: '🇺🇸' };
+
+  // France
+  if (
+    combined.includes('🇫🇷') ||
+    lower.includes('france') ||
+    lower.includes('paris') ||
+    lower.includes('ovh') ||
+    hasIso2Marker(combined, 'FR') ||
+    hasSpacedMarker(combined, 'F', 'R')
+  ) {
+    return { code: 'FR', name: 'France', flag: '🇫🇷', supported: true };
+  }
+
+  // Singapore
+  if (
+    combined.includes('🇸🇬') ||
+    lower.includes('singapore') ||
+    hasIso2Marker(combined, 'SG') ||
+    hasSpacedMarker(combined, 'S', 'G')
+  ) {
+    return { code: 'SG', name: 'Singapore', flag: '🇸🇬', supported: true };
+  }
+
+  // Japan
+  if (
+    combined.includes('🇯🇵') ||
+    lower.includes('japan') ||
+    lower.includes('tokyo') ||
+    lower.includes('osaka') ||
+    hasIso2Marker(combined, 'JP') ||
+    hasSpacedMarker(combined, 'J', 'P')
+  ) {
+    return { code: 'JP', name: 'Japan', flag: '🇯🇵', supported: true };
+  }
+
+  // Turkey
+  if (
+    combined.includes('🇹🇷') ||
+    lower.includes('turkey') ||
+    lower.includes('turkiye') ||
+    lower.includes('istanbul') ||
+    hasIso2Marker(combined, 'TR') ||
+    hasSpacedMarker(combined, 'T', 'R')
+  ) {
+    return { code: 'TR', name: 'Turkey', flag: '🇹🇷', supported: true };
+  }
+
+  // Finland
+  if (
+    combined.includes('🇫🇮') ||
+    lower.includes('finland') ||
+    lower.includes('helsinki') ||
+    hasIso2Marker(combined, 'FI') ||
+    hasSpacedMarker(combined, 'F', 'I')
+  ) {
+    return { code: 'FI', name: 'Finland', flag: '🇫🇮', supported: true };
+  }
+
+  // Sweden
+  if (
+    combined.includes('🇸🇪') ||
+    lower.includes('sweden') ||
+    lower.includes('stockholm') ||
+    hasIso2Marker(combined, 'SE') ||
+    hasSpacedMarker(combined, 'S', 'E')
+  ) {
+    return { code: 'SE', name: 'Sweden', flag: '🇸🇪', supported: true };
+  }
+
+  // Canada
+  if (
+    combined.includes('🇨🇦') ||
+    lower.includes('canada') ||
+    lower.includes('toronto') ||
+    hasIso2Marker(combined, 'CA') ||
+    hasSpacedMarker(combined, 'C', 'A')
+  ) {
+    return { code: 'CA', name: 'Canada', flag: '🇨🇦', supported: true };
+  }
+
+  // South Korea
+  if (
+    combined.includes('🇰🇷') ||
+    lower.includes('korea') ||
+    lower.includes('seoul') ||
+    hasIso2Marker(combined, 'KR') ||
+    hasSpacedMarker(combined, 'K', 'R')
+  ) {
+    return { code: 'KR', name: 'South Korea', flag: '🇰🇷', supported: true };
+  }
+
+  return { code: 'US', name: 'United States', flag: '🇺🇸', supported: true };
 }
 
 export function parseSingleConfig(raw: string, index: number): ParsedConfig | null {
@@ -355,7 +600,7 @@ export function parseSingleConfig(raw: string, index: number): ParsedConfig | nu
         countryCode: country.code,
         countryName: country.name,
         countryFlag: country.flag,
-        isSupportedRegion: country.code !== 'IR' && country.code !== 'CN' && country.code !== 'RU',
+        isSupportedRegion: country.supported,
         uuidOrPassword: uuid,
         security: d.scy || 'auto',
         sni: d.sni || d.host,
@@ -425,7 +670,7 @@ export function parseSingleConfig(raw: string, index: number): ParsedConfig | nu
         countryCode: country.code,
         countryName: country.name,
         countryFlag: country.flag,
-        isSupportedRegion: country.code !== 'IR' && country.code !== 'CN' && country.code !== 'RU',
+        isSupportedRegion: country.supported,
         uuidOrPassword: `${method}:${password}`,
         security: method,
         recommendedEngine: 'xray',
@@ -522,7 +767,8 @@ export function parseSingleConfig(raw: string, index: number): ParsedConfig | nu
       outbounds: [outbound, { type: 'direct', tag: 'direct' }],
     };
 
-    const country = guessCountryFromRemark(name, host);
+    const sniVal = params.sni || params.servername || '';
+    const country = guessCountryFromRemark(name, host, sniVal);
 
     return {
       id: stableId,
@@ -535,10 +781,10 @@ export function parseSingleConfig(raw: string, index: number): ParsedConfig | nu
       countryCode: country.code,
       countryName: country.name,
       countryFlag: country.flag,
-      isSupportedRegion: country.code !== 'IR' && country.code !== 'CN' && country.code !== 'RU',
+      isSupportedRegion: country.supported,
       uuidOrPassword: username || password,
       security: params.security,
-      sni: params.sni || params.servername,
+      sni: sniVal || undefined,
       alpn: params.alpn ? params.alpn.split(',') : undefined,
       reality: params.pbk
         ? {

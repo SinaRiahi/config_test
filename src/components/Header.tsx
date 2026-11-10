@@ -1,7 +1,5 @@
 import React from 'react';
 import { Settings, Play, Square, Download, FileText, Globe, Code2, Github, MapPin } from 'lucide-react';
-import { AppIcon } from './AppIcon';
-import { THEME } from '../theme';
 
 export type ActiveTab = 'workspace' | 'regions' | 'rust-code' | 'workflow';
 export type InputSubMode = 'paste' | 'discover';
@@ -36,22 +34,9 @@ export const Header: React.FC<HeaderProps> = ({
   isExportingZip,
 }) => {
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-[#263548] bg-[#0F1724]/95 backdrop-blur-md px-4 sm:px-6 py-2.5 transition-colors">
+    <header className="sticky top-0 z-40 w-full border-b border-[#252836] bg-[#0D0E12]/95 backdrop-blur-md px-4 sm:px-6 py-2.5 transition-colors">
       <div className="max-w-[1440px] mx-auto flex items-center justify-between gap-4">
-        {/* Left Side: Application Icon + Title + Secondary Label */}
-        <div className="flex items-center gap-3 shrink-0">
-          <AppIcon className="w-7 h-7 shrink-0" />
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold tracking-tight text-[#E8EEF6] whitespace-nowrap">
-              VPN Config Checker
-            </span>
-            <span className="hidden sm:inline-flex items-center text-[11px] font-mono font-medium text-[#22D3EE] bg-[#22D3EE]/10 px-2 py-0.5 rounded border border-[#22D3EE]/25 whitespace-nowrap">
-              AI Studio Deep Verifier
-            </span>
-          </div>
-        </div>
-
-        {/* Center: Segmented Controls for Paste / Load Configs and Online Feeds */}
+        {/* Left Side: Segmented Controls for Paste / Load Configs and Online Feeds */}
         <div className="flex items-center gap-2">
           {/* Main workspace mode switcher */}
           <div className="flex items-center bg-[#131D2B] p-1 rounded-lg border border-[#263548] text-xs">

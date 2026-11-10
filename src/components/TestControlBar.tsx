@@ -88,8 +88,8 @@ export const TestControlBar: React.FC<TestControlBarProps> = ({
         </div>
       </div>
 
-      {/* Verification Progress Bar: Electric Cyan or Emerald on complete */}
-      <div className="w-full bg-[#0C1420] rounded-full h-1.5 overflow-hidden border border-[#263548]/60">
+      {/* Verification Progress Bar: Thicker (28px) with high-contrast embedded progress label */}
+      <div className="relative w-full bg-[#090A0E] rounded-lg h-7 overflow-hidden border border-[#252836] shadow-inner flex items-center">
         <div
           className={`h-full transition-all duration-300 ease-out ${
             isFinished
@@ -98,6 +98,13 @@ export const TestControlBar: React.FC<TestControlBarProps> = ({
           }`}
           style={{ width: `${testProgress}%` }}
         />
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-3">
+          <span className="text-xs font-mono font-bold tracking-wider text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] tabular-nums">
+            {totalConfigs > 0
+              ? `${testedCount} / ${totalConfigs} Tested (${testProgress}%)`
+              : 'Ready to Test · 0 Configs in Queue'}
+          </span>
+        </div>
       </div>
     </div>
   );
