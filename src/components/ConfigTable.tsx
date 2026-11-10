@@ -123,27 +123,27 @@ export const ConfigTable: React.FC<ConfigTableProps> = ({
   }, [configs, testResults, sortField, sortDirection]);
 
   return (
-    <div className="space-y-2.5">
-      {/* Compact Filter & Export Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800 rounded-xl p-2.5 shadow-xs dark:shadow-none">
-        <div className="flex flex-wrap items-center gap-2">
+    <div className="space-y-3">
+      {/* Filter & Export Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-[#130f2b] border border-[#d1c9f4] dark:border-[#34296e] rounded-xl p-3.5 shadow-xs dark:shadow-none">
+        <div className="flex flex-wrap items-center gap-2.5">
           <div className="relative">
-            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" />
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#766ea5]" />
             <input
               type="text"
-              placeholder="Filter..."
+              placeholder="Search server, country, or host..."
               value={searchFilter}
               onChange={(e) => setSearchFilter(e.target.value)}
-              className="bg-zinc-50 dark:bg-[#060608] border border-zinc-300 dark:border-zinc-800 rounded-lg pl-8 pr-2.5 py-1 text-xs font-mono text-zinc-900 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-500 w-44 sm:w-52 focus:outline-none focus:border-zinc-500"
+              className="bg-[#f5f3ff] dark:bg-[#0b081b] border border-[#d1c9f4] dark:border-[#34296e] rounded-lg pl-9 pr-3 py-1.5 text-xs sm:text-sm text-[#130f2b] dark:text-slate-100 placeholder-[#766ea5] w-56 sm:w-64 focus:outline-none focus:border-sky-400"
             />
           </div>
 
           <select
             value={protocolFilter}
             onChange={(e) => setProtocolFilter(e.target.value)}
-            className="bg-zinc-50 dark:bg-[#060608] border border-zinc-300 dark:border-zinc-800 rounded-lg px-2.5 py-1 text-xs text-zinc-800 dark:text-zinc-300 focus:outline-none"
+            className="bg-[#f5f3ff] dark:bg-[#0b081b] border border-[#d1c9f4] dark:border-[#34296e] rounded-lg px-3 py-1.5 text-xs sm:text-sm text-[#130f2b] dark:text-slate-200 focus:outline-none"
           >
-            <option value="all">Protocols ({totalUnfilteredCount})</option>
+            <option value="all">All Protocols ({totalUnfilteredCount})</option>
             {Object.entries(protocolStats).map(([proto, count]) => (
               <option key={proto} value={proto}>
                 {proto.toUpperCase()} ({count})
@@ -154,57 +154,58 @@ export const ConfigTable: React.FC<ConfigTableProps> = ({
           <select
             value={regionFilter}
             onChange={(e) => setRegionFilter(e.target.value)}
-            className="bg-zinc-50 dark:bg-[#060608] border border-zinc-300 dark:border-zinc-800 rounded-lg px-2.5 py-1 text-xs text-zinc-800 dark:text-zinc-300 focus:outline-none"
+            className="bg-[#f5f3ff] dark:bg-[#0b081b] border border-[#d1c9f4] dark:border-[#34296e] rounded-lg px-3 py-1.5 text-xs sm:text-sm text-[#130f2b] dark:text-slate-200 focus:outline-none"
           >
             <option value="all">All Regions</option>
-            <option value="verified_only">✓ Verified ({workingCount})</option>
-            <option value="us">🇺🇸 US</option>
+            <option value="verified_only">✓ Verified Only ({workingCount})</option>
+            <option value="us">🇺🇸 United States</option>
             <option value="europe">🇪🇺 Europe</option>
-            <option value="asia">🇯🇵 Asia</option>
-            <option value="blocked">✕ Blocked</option>
+            <option value="asia">🇯🇵 Asia-Pacific</option>
+            <option value="blocked">✕ Docs / Region Blocked</option>
           </select>
 
           {hasActiveFilters && (
             <button
               onClick={resetFilters}
               title="Reset filters"
-              className="p-1 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors"
+              className="px-2.5 py-1.5 text-xs font-medium text-[#4c447a] hover:text-[#130f2b] dark:text-[#c4bdeb] dark:hover:text-white flex items-center gap-1 transition-colors"
             >
               <RotateCcw className="w-3.5 h-3.5" />
+              <span>Reset</span>
             </button>
           )}
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={onCopyWorking}
             disabled={workingCount === 0}
-            title="Copy verified configs"
-            className="px-2.5 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-800 disabled:opacity-40 rounded-lg transition-colors flex items-center gap-1.5"
+            title="Copy all verified configs"
+            className="px-3 py-1.5 text-xs sm:text-sm font-medium text-[#130f2b] dark:text-slate-200 bg-[#ede9fe] dark:bg-[#1c163d] border border-[#d1c9f4] dark:border-[#34296e] hover:bg-[#ddd6fe] dark:hover:bg-[#282054] disabled:opacity-40 rounded-lg transition-colors flex items-center gap-1.5"
           >
-            <Copy className="w-3.5 h-3.5" />
-            <span>{workingCount}</span>
+            <Copy className="w-3.5 h-3.5 text-teal-600 dark:text-[#2dd4bf]" />
+            <span>Copy Verified ({workingCount})</span>
           </button>
           <button
             onClick={onExportWorkingTxt}
             disabled={totalUnfilteredCount === 0}
-            title="Export .txt"
-            className="px-2.5 py-1 text-xs font-semibold text-white dark:text-black bg-zinc-900 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-40 rounded-lg transition-colors flex items-center gap-1.5 shadow-xs"
+            title="Export verified configs as .txt"
+            className="px-3.5 py-1.5 text-xs sm:text-sm font-bold text-[#0b081b] bg-[#2dd4bf] hover:bg-[#14b8a6] disabled:opacity-40 rounded-lg transition-colors flex items-center gap-1.5 shadow-xs"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>.txt</span>
+            <span>Export .txt</span>
           </button>
         </div>
       </div>
 
-      {/* Compact Data Grid */}
-      <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-x-auto shadow-xs dark:shadow-none">
-        <table className="w-full text-left border-collapse text-xs">
+      {/* High-Readability Data Grid */}
+      <div className="bg-white dark:bg-[#130f2b] border border-[#d1c9f4] dark:border-[#34296e] rounded-xl overflow-x-auto shadow-xs dark:shadow-none">
+        <table className="w-full text-left border-collapse text-xs sm:text-sm">
           <thead>
-            <tr className="border-b border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-900/60 font-medium">
+            <tr className="border-b border-[#d1c9f4] dark:border-[#34296e] text-[#4c447a] dark:text-[#c4bdeb] bg-[#ede9fe]/60 dark:bg-[#1c163d]/80 font-semibold text-xs">
               <th
                 onClick={() => handleHeaderSort('index')}
-                className="py-2 px-3 font-mono w-12 cursor-pointer select-none hover:text-zinc-900 dark:hover:text-white"
+                className="py-3 px-3.5 font-mono w-14 cursor-pointer select-none hover:text-[#130f2b] dark:hover:text-white"
               >
                 <div className="flex items-center gap-1">
                   <span>#</span>
@@ -212,61 +213,61 @@ export const ConfigTable: React.FC<ConfigTableProps> = ({
                 </div>
               </th>
               <th
-                onClick={() => handleHeaderSort('country')}
-                className="py-2 px-3 cursor-pointer select-none hover:text-zinc-900 dark:hover:text-white"
-                title="Region"
+                onClick={() => handleHeaderSort('status')}
+                className="py-3 px-3.5 cursor-pointer select-none hover:text-[#130f2b] dark:hover:text-white"
               >
-                <div className="flex items-center gap-1">
-                  <Globe2 className="w-3.5 h-3.5" />
+                <div className="flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-teal-600 dark:text-[#2dd4bf]" />
+                  <span>Status</span>
                   <ArrowUpDown className="w-3 h-3 opacity-50" />
                 </div>
               </th>
-              <th className="py-2 px-3">Proto</th>
-              <th className="py-2 px-3">Host</th>
               <th
-                onClick={() => handleHeaderSort('name')}
-                className="py-2 px-3 cursor-pointer select-none hover:text-zinc-900 dark:hover:text-white"
+                onClick={() => handleHeaderSort('country')}
+                className="py-3 px-3.5 cursor-pointer select-none hover:text-[#130f2b] dark:hover:text-white"
               >
-                <div className="flex items-center gap-1">
-                  <span>Name</span>
+                <div className="flex items-center gap-1.5">
+                  <Globe2 className="w-4 h-4 text-sky-500 dark:text-sky-400" />
+                  <span>Region</span>
                   <ArrowUpDown className="w-3 h-3 opacity-50" />
                 </div>
               </th>
               <th
                 onClick={() => handleHeaderSort('delay')}
-                className="py-2 px-3 text-right font-mono cursor-pointer select-none hover:text-zinc-900 dark:hover:text-white"
-                title="Latency"
+                className="py-3 px-3.5 text-right font-mono cursor-pointer select-none hover:text-[#130f2b] dark:hover:text-white"
               >
-                <div className="flex items-center justify-end gap-1">
-                  <Clock className="w-3.5 h-3.5" />
+                <div className="flex items-center justify-end gap-1.5">
+                  <Clock className="w-4 h-4 text-violet-500 dark:text-violet-400" />
+                  <span>Ping</span>
                   <ArrowUpDown className="w-3 h-3 opacity-50" />
                 </div>
               </th>
               <th
-                onClick={() => handleHeaderSort('status')}
-                className="py-2 px-3 text-center cursor-pointer select-none hover:text-zinc-900 dark:hover:text-white"
-                title="AI Studio Status"
+                onClick={() => handleHeaderSort('name')}
+                className="py-3 px-3.5 cursor-pointer select-none hover:text-[#130f2b] dark:hover:text-white"
               >
-                <div className="flex items-center justify-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5" />
+                <div className="flex items-center gap-1">
+                  <span>Server / Remark</span>
                   <ArrowUpDown className="w-3 h-3 opacity-50" />
                 </div>
               </th>
-              <th className="py-2 px-3 text-right w-20"></th>
+              <th className="py-3 px-3.5">Protocol &amp; Endpoint</th>
+              <th className="py-3 px-3.5">Verification Diagnostic</th>
+              <th className="py-3 px-3.5 text-right w-24">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/60 font-mono">
+          <tbody className="divide-y divide-[#ede9fe] dark:divide-[#282054]">
             {sortedConfigs.length === 0 ? (
               <tr>
-                <td colSpan={8} className="py-8 px-4 text-center font-sans text-zinc-500 dark:text-zinc-400">
+                <td colSpan={8} className="py-10 px-4 text-center text-[#4c447a] dark:text-[#c4bdeb]">
                   {totalUnfilteredCount === 0 ? (
-                    <span>Empty queue</span>
+                    <span>No configurations in queue. Paste links above or fetch online feeds.</span>
                   ) : (
                     <button
                       onClick={resetFilters}
-                      className="text-xs font-semibold text-zinc-900 dark:text-white underline"
+                      className="text-sm font-semibold text-[#130f2b] dark:text-white underline"
                     >
-                      Reset filters
+                      No configs match filters — click to reset
                     </button>
                   )}
                 </td>
@@ -278,87 +279,87 @@ export const ConfigTable: React.FC<ConfigTableProps> = ({
                 const country = result?.countryCode || cfg.countryCode || 'US';
 
                 return (
-                  <tr key={cfg.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/40 transition-colors">
-                    <td className="py-2 px-3 text-zinc-400 dark:text-zinc-500 tabular-nums">{cfg.index}</td>
-                    <td className="py-2 px-3">
-                      <span className="flex items-center gap-1.5">
-                        <span>{flag}</span>
-                        <span className="font-bold text-zinc-800 dark:text-zinc-200">{country}</span>
-                      </span>
+                  <tr
+                    key={cfg.id}
+                    onClick={() => onInspect(cfg)}
+                    className="hover:bg-[#f5f3ff] dark:hover:bg-[#1c163d]/60 transition-colors cursor-pointer"
+                  >
+                    <td className="py-3 px-3.5 font-mono text-[#766ea5] tabular-nums">
+                      {cfg.index}
                     </td>
-                    <td className="py-2 px-3">
-                      <span className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 uppercase">
-                        {cfg.protocol}
-                      </span>
-                    </td>
-                    <td className="py-2 px-3 text-zinc-700 dark:text-zinc-200 tabular-nums">
-                      {cfg.server}:{cfg.port}
-                    </td>
-                    <td className="py-2 px-3 text-zinc-900 dark:text-white font-sans max-w-[220px] truncate">
-                      {cfg.name}
-                    </td>
-                    <td className="py-2 px-3 text-right tabular-nums">
-                      {result?.delay ? (
-                        <span className="text-emerald-600 dark:text-emerald-400 font-bold">
-                          {result.delay}ms
-                        </span>
-                      ) : (
-                        <span className="text-zinc-400 dark:text-zinc-600">—</span>
-                      )}
-                    </td>
-                    <td className="py-2 px-3 text-center">
+                    <td className="py-3 px-3.5 font-mono">
                       {result ? (
                         result.status === 'working' ? (
-                          <span
-                            title={result.detail}
-                            className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400"
-                          >
-                            ✓ 200
+                          <span className="font-bold text-teal-600 dark:text-[#2dd4bf] whitespace-nowrap">
+                            ✓ Verified
                           </span>
                         ) : result.status === 'region_blocked' ? (
-                          <span
-                            title={result.detail}
-                            className="text-[11px] font-bold text-rose-600 dark:text-rose-400"
-                          >
-                            ✕ GEO
+                          <span className="font-bold text-rose-600 dark:text-rose-400 whitespace-nowrap">
+                            {result.detail.toLowerCase().includes('redirect')
+                              ? '✕ Docs Redirect'
+                              : '✕ Geo Blocked'}
                           </span>
                         ) : result.status === 'api_blocked' ? (
-                          <span
-                            title={result.detail}
-                            className="text-[11px] font-bold text-amber-600 dark:text-amber-400"
-                          >
-                            ⚠ 403
+                          <span className="font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap">
+                            ⚠ API Blocked
                           </span>
                         ) : (
-                          <span
-                            title={result.detail}
-                            className="text-[11px] font-bold text-zinc-500"
-                          >
-                            ✕ ERR
+                          <span className="font-bold text-[#766ea5] whitespace-nowrap">
+                            ✕ Failed
                           </span>
                         )
                       ) : (
-                        <span className="text-zinc-400 dark:text-zinc-600 text-[11px]">·</span>
+                        <span className="text-[#766ea5]">Untested</span>
                       )}
                     </td>
-                    <td className="py-2 px-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
+                    <td className="py-3 px-3.5 font-mono">
+                      <span className="flex items-center gap-1.5">
+                        <span>{flag}</span>
+                        <span className="font-bold text-sky-600 dark:text-sky-400">{country}</span>
+                      </span>
+                    </td>
+                    <td className="py-3 px-3.5 text-right font-mono tabular-nums">
+                      {result?.delay ? (
+                        <span className="text-teal-600 dark:text-[#2dd4bf] font-bold">
+                          {result.delay} ms
+                        </span>
+                      ) : (
+                        <span className="text-[#766ea5]">—</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-3.5 font-medium text-[#130f2b] dark:text-white max-w-[220px] truncate">
+                      {cfg.name}
+                    </td>
+                    <td className="py-3 px-3.5 font-mono text-xs text-[#4c447a] dark:text-[#c4bdeb] tabular-nums whitespace-nowrap">
+                      <span className="font-bold uppercase text-violet-600 dark:text-violet-400">
+                        {cfg.protocol}
+                      </span>{' '}
+                      · {cfg.server}:{cfg.port}
+                    </td>
+                    <td className="py-3 px-3.5 text-xs text-[#4c447a] dark:text-[#c4bdeb] max-w-[280px] truncate">
+                      {result ? result.detail : 'Click Verify Queue to test redirect & Gemini gate'}
+                    </td>
+                    <td
+                      className="py-3 px-3.5 text-right"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => onInspect(cfg)}
                           title="Inspect outbound JSON"
-                          className="p-1 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                          className="p-1.5 text-[#4c447a] hover:text-[#130f2b] dark:text-[#c4bdeb] dark:hover:text-white rounded-lg hover:bg-[#ede9fe] dark:hover:bg-[#282054] transition-colors"
                         >
-                          <Eye className="w-3.5 h-3.5" />
+                          <Eye className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => onCopyUri(cfg.raw, `row-copy-${cfg.id}`)}
                           title="Copy URI"
-                          className="p-1 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                          className="p-1.5 text-[#4c447a] hover:text-[#130f2b] dark:text-[#c4bdeb] dark:hover:text-white rounded-lg hover:bg-[#ede9fe] dark:hover:bg-[#282054] transition-colors"
                         >
                           {copiedId === `row-copy-${cfg.id}` ? (
-                            <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                            <Check className="w-4 h-4 text-teal-600 dark:text-[#2dd4bf]" />
                           ) : (
-                            <Copy className="w-3.5 h-3.5" />
+                            <Copy className="w-4 h-4" />
                           )}
                         </button>
                       </div>

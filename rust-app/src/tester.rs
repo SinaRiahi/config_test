@@ -12,9 +12,20 @@ use tokio::net::TcpStream;
 use tokio::process::Command;
 use tokio::sync::{mpsc, Semaphore};
 
-pub const AI_STUDIO_URL: &str = "https://aistudio.google.com/";
-pub const GEMINI_API_URL: &str = "https://generativelanguage.googleapis.com";
+/// Actual AI Studio app workspace URL that triggers immediate regional redirect to
+/// `ai.google.dev/gemini-api/docs/available-regions` when accessed from an unsupported IP.
+pub const AI_STUDIO_APP_URL: &str = "https://aistudio.google.com/app/prompts/new_chat";
+pub const AI_STUDIO_ROOT_URL: &str = "https://aistudio.google.com/";
+
+/// Probing the v1beta/models endpoint with a dummy key forces Google's Gemini API gateway
+/// to evaluate the client IP against Google's internal GeoIP table BEFORE validating the key:
+/// - Unsupported IP -> HTTP 400/403 `"User location is not supported for the API use."`
+/// - Supported IP   -> HTTP 400     `"API key not valid. Please pass a valid API key."`
+pub const GEMINI_API_PROBE_URL: &str =
+    "https://generativelanguage.googleapis.com/v1beta/models?key=AIzaSyDummyKeyForRegionProbe";
+
 pub const GEO_CHECK_URL: &str = "https://speed.cloudflare.com/meta";
+pub const IPINFO_FALLBACK_URL: &str = "https://ipinfo.io/json";
 pub const CONNECT_TIMEOUT_SECS: u64 = 7;
 pub const HTTP_TIMEOUT_SECS: u64 = 15;
 
@@ -24,15 +35,18 @@ static SUPPORTED_REGIONS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
         "US", "CA", "GB", "DE", "FR", "NL", "JP", "SG", "KR", "AU", "NZ", "IE",
         "CH", "SE", "NO", "FI", "DK", "BE", "AT", "ES", "IT", "PT", "PL", "CZ",
         "RO", "HU", "GR", "BG", "HR", "SK", "SI", "EE", "LV", "LT", "IS", "LU",
-        "CY", "MT", "BR", "MX", "AR", "CL", "CO", "PE", "IL", "TW", "HK", "IN",
+        "CY", "MT", "BR", "MX", "AR", "CL", "CO", "PE", "IL", "TW", "IN",
         "ID", "MY", "PH", "TH", "VN", "ZA", "NG", "KE", "EG", "SA", "AE", "TR",
     ]
     .into_iter()
     .collect()
 });
 
+// Note: HK, CN, IR, RU, BY, CU, KP, SY are blocked by Google AI Studio
 static UNSUPPORTED_REGIONS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
-    ["CN", "IR", "RU", "CU", "KP", "SY", "BY"].into_iter().collect()
+    ["CN", "HK", "MO", "IR", "RU", "CU", "KP", "SY", "BY"]
+        .into_iter()
+        .collect()
 });
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -49,16 +63,19 @@ pub struct TestResult {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TestStatus {
-    Working,        // Country supported + AI Studio HTTP 200 + Gemini API reachable
-    RegionBlocked,  // Egress IP in unsupported country or AI Studio returned geo-block text
-    ApiBlocked,     // AI Studio web OK but Gemini API gateway is blocked
-    Failed,         // Proxy connection timeout or failed
+    Working,       // Passed GeoIP + No Docs Redirect + Passed Google Gemini API Location Gate
+    RegionBlocked, // Redirected to available-regions docs or rejected by Google GeoIP
+    ApiBlocked,    // Web reachable but Gemini API endpoint unreachable
+    Failed,        // Proxy connection timeout or core failure
 }
 
 #[derive(Deserialize)]
 struct CloudflareMeta {
-    #[serde(rename = "clientIp")]
-    _client_ip: Option<String>,
+    country: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct IpInfoMeta {
     country: Option<String>,
 }
 
@@ -89,11 +106,64 @@ async fn wait_for_port(port: u16, timeout: Duration) -> bool {
 }
 
 pub fn is_country_supported(country_code: &str) -> bool {
-    let code = country_code.to_uppercase();
+    let code = country_code.trim().to_uppercase();
     if UNSUPPORTED_REGIONS.contains(code.as_str()) {
         return false;
     }
     SUPPORTED_REGIONS.contains(code.as_str())
+}
+
+/// Checks if the final redirected URL or response body indicates Google redirected the user
+/// to the documentation / supported regions list (`ai.google.dev/gemini-api/docs/available-regions`).
+pub fn is_redirected_to_regions_doc(final_url: &str, body_lower: &str) -> bool {
+    let url_lower = final_url.to_lowercase();
+
+    // 1. Check if redirected away from aistudio.google.com/accounts.google.com to docs or region list
+    if url_lower.contains("available-regions")
+        || url_lower.contains("ai.google.dev/gemini-api/docs")
+        || url_lower.contains("ai.google.dev/docs")
+        || url_lower.contains("region-not-supported")
+        || url_lower.contains("unsupported-region")
+    {
+        return true;
+    }
+
+    // 2. Check HTML content for the "Available regions" documentation page or geo-block text
+    body_lower.contains("available regions for google ai studio")
+        || body_lower.contains("gemini-api/docs/available-regions")
+        || body_lower.contains("where google ai studio is available")
+        || body_lower.contains("not available in your country")
+        || body_lower.contains("not available in your region")
+        || body_lower.contains("isn't available in your region")
+        || body_lower.contains("unsupported country")
+        || body_lower.contains("unsupported region")
+}
+
+/// Inspects the Gemini API `/v1beta/models?key=AIzaSyDummy...` response body.
+/// Returns `Err(reason)` if Google's internal GeoIP blocks the IP (`User location is not supported`).
+pub fn check_gemini_api_location_gate(status_code: u16, body: &str) -> Result<(), String> {
+    let lower = body.to_lowercase();
+    if lower.contains("user location is not supported")
+        || lower.contains("location is not supported")
+    {
+        return Err("Google GeoIP rejected IP: 'User location is not supported'".to_string());
+    }
+    if status_code == 451 {
+        return Err("Gemini API returned HTTP 451 Unavailable For Legal Reasons".to_string());
+    }
+    // Note: HTTP 400 with `API_KEY_INVALID` ("API key not valid") is the EXPECTED success response
+    // when using our dummy probe key from a supported region!
+    if lower.contains("api_key_invalid")
+        || lower.contains("api key not valid")
+        || status_code == 200
+        || status_code == 400
+    {
+        return Ok(());
+    }
+    if status_code == 403 {
+        return Err("Gemini API returned HTTP 403 Forbidden (IP/Region blocked)".to_string());
+    }
+    Ok(())
 }
 
 pub async fn run_single_test(
@@ -113,7 +183,7 @@ pub async fn run_single_test(
                 is_supported_region: false,
                 delay_ms: None,
                 status: TestStatus::Failed,
-                detail: format!("Failed to create temp dir: {e}"),
+                detail: format!("Temp dir error: {e}"),
             }
         }
     };
@@ -129,7 +199,7 @@ pub async fn run_single_test(
                 is_supported_region: false,
                 delay_ms: None,
                 status: TestStatus::Failed,
-                detail: format!("Parsing error: {e}"),
+                detail: format!("Parse error: {e}"),
             }
         }
     };
@@ -150,7 +220,7 @@ pub async fn run_single_test(
                 is_supported_region: false,
                 delay_ms: None,
                 status: TestStatus::Failed,
-                detail: "Required core binary not found. Open Setup Cores.".to_string(),
+                detail: "Core binary missing — open Settings (⚙) to auto-install".to_string(),
             }
         }
     };
@@ -166,7 +236,7 @@ pub async fn run_single_test(
                 is_supported_region: false,
                 delay_ms: None,
                 status: TestStatus::Failed,
-                detail: format!("Could not allocate local port: {e}"),
+                detail: format!("Port allocation error: {e}"),
             }
         }
     };
@@ -209,7 +279,7 @@ pub async fn run_single_test(
             is_supported_region: false,
             delay_ms: None,
             status: TestStatus::Failed,
-            detail: format!("Failed to write config: {e}"),
+            detail: format!("Config write error: {e}"),
         };
     }
 
@@ -236,7 +306,7 @@ pub async fn run_single_test(
                 is_supported_region: false,
                 delay_ms: None,
                 status: TestStatus::Failed,
-                detail: format!("Failed to spawn core process: {e}"),
+                detail: format!("Core spawn error: {e}"),
             }
         }
     };
@@ -251,7 +321,7 @@ pub async fn run_single_test(
             is_supported_region: false,
             delay_ms: None,
             status: TestStatus::Failed,
-            detail: "Proxy core failed to start or port not responding".to_string(),
+            detail: "Local proxy port timed out".to_string(),
         };
     }
 
@@ -261,26 +331,35 @@ pub async fn run_single_test(
         let client = reqwest::Client::builder()
             .proxy(proxy)
             .timeout(Duration::from_secs(HTTP_TIMEOUT_SECS))
-            .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            .user_agent(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            )
             .build()
             .map_err(|e| e.to_string())?;
 
-        // 1. Stage 1: Geolocation check
-        let mut detected_country = None;
-        if let Ok(geo_resp) = client.get(GEO_CHECK_URL).send().await {
-            if let Ok(meta) = geo_resp.json::<CloudflareMeta>().await {
+        // Stage 1: Multi-source Egress Country Check (ipinfo.io + Cloudflare fallback)
+        let mut detected_country: Option<String> = None;
+        if let Ok(resp) = client.get(IPINFO_FALLBACK_URL).send().await {
+            if let Ok(meta) = resp.json::<IpInfoMeta>().await {
                 detected_country = meta.country;
+            }
+        }
+        if detected_country.is_none() {
+            if let Ok(geo_resp) = client.get(GEO_CHECK_URL).send().await {
+                if let Ok(meta) = geo_resp.json::<CloudflareMeta>().await {
+                    detected_country = meta.country;
+                }
             }
         }
 
         let is_supported = match &detected_country {
             Some(c) => is_country_supported(c),
-            None => true, // Fallback to content inspection if geo API fails
+            None => true,
         };
 
         if let Some(c) = &detected_country {
             if !is_supported {
-                let detail = format!("Egress IP is in unsupported country: {c}");
+                let detail = format!("Unsupported egress country [{c}]");
                 return Ok((
                     detected_country,
                     false,
@@ -291,58 +370,79 @@ pub async fn run_single_test(
             }
         }
 
-        // 2. Stage 2: AI Studio Web check & content scanner
+        // Stage 2: Probe AI Studio App URL & Detect Redirect to `available-regions` Documentation
         let start = Instant::now();
-        let web_resp = client.get(AI_STUDIO_URL).send().await.map_err(|e| e.to_string())?;
+        let web_resp = match client.get(AI_STUDIO_APP_URL).send().await {
+            Ok(r) => r,
+            Err(_) => client
+                .get(AI_STUDIO_ROOT_URL)
+                .send()
+                .await
+                .map_err(|e| format!("AI Studio connection failed: {e}"))?,
+        };
         let latency_ms = start.elapsed().as_millis() as u64;
         let status = web_resp.status();
+        let final_url = web_resp.url().to_string();
 
         if !status.is_success() {
+            let detail = format!("AI Studio returned HTTP {}", status.as_u16());
             return Ok((
                 detected_country,
                 is_supported,
                 Some(latency_ms),
                 TestStatus::Failed,
-                format!("AI Studio returned HTTP {}", status.as_u16()),
+                detail,
             ));
         }
 
         let body_text = web_resp.text().await.unwrap_or_default().to_lowercase();
-        let is_geo_blocked = body_text.contains("not available in your country")
-            || body_text.contains("not available in your region")
-            || body_text.contains("isn't available in your region")
-            || body_text.contains("unsupported country");
 
-        if is_geo_blocked {
+        if is_redirected_to_regions_doc(&final_url, &body_text) {
+            let detail = {
+                let c_tag = detected_country.as_deref().unwrap_or("??");
+                format!(
+                    "Redirected to Available Regions Docs [{c_tag} IP flagged by Google]"
+                )
+            };
             return Ok((
                 detected_country,
                 false,
                 Some(latency_ms),
                 TestStatus::RegionBlocked,
-                "AI Studio returned regional restriction message".to_string(),
+                detail,
             ));
         }
 
-        // 3. Stage 3: Gemini API Gateway check
-        let api_probe = client.get(GEMINI_API_URL).send().await;
-        let is_api_ok = match api_probe {
-            Ok(resp) => resp.status().as_u16() != 403 && resp.status().as_u16() != 451,
-            Err(_) => false,
-        };
-
-        if !is_api_ok {
-            return Ok((
-                detected_country,
-                is_supported,
-                Some(latency_ms),
-                TestStatus::ApiBlocked,
-                "AI Studio web loaded but Gemini API endpoint was rejected".to_string(),
-            ));
+        // Stage 3: Probe Google's Internal GeoIP Gate via Gemini API `/v1beta/models`
+        match client.get(GEMINI_API_PROBE_URL).send().await {
+            Ok(api_resp) => {
+                let code = api_resp.status().as_u16();
+                let api_body = api_resp.text().await.unwrap_or_default();
+                if let Err(region_err) = check_gemini_api_location_gate(code, &api_body) {
+                    return Ok((
+                        detected_country,
+                        false,
+                        Some(latency_ms),
+                        TestStatus::RegionBlocked,
+                        region_err,
+                    ));
+                }
+            }
+            Err(e) => {
+                let detail = format!("AI Studio loaded, but Gemini API unreachable: {e}");
+                return Ok((
+                    detected_country,
+                    is_supported,
+                    Some(latency_ms),
+                    TestStatus::ApiBlocked,
+                    detail,
+                ));
+            }
         }
 
         let detail = {
-            let country_str = detected_country.as_deref().unwrap_or("Verified Region");
-            format!("Verified: [{country_str}] AI Studio HTTP 200 & Gemini API OK")
+            let country_str = detected_country.as_deref().unwrap_or("Verified");
+            format!("Verified [{country_str}] · App OK (No Docs Redirect) & Google GeoIP Passed")
         };
         Ok((
             detected_country,
@@ -421,5 +521,31 @@ impl BatchRunner {
         for h in handles {
             let _ = h.await;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_detects_available_regions_redirect() {
+        assert!(is_redirected_to_regions_doc(
+            "https://ai.google.dev/gemini-api/docs/available-regions",
+            "<html><title>Available regions</title></html>"
+        ));
+        assert!(!is_redirected_to_regions_doc(
+            "https://accounts.google.com/v3/signin/identifier?continue=https://aistudio.google.com/app",
+            "<html>sign in to continue to google ai studio</html>"
+        ));
+    }
+
+    #[test]
+    fn test_gemini_api_location_gate() {
+        let blocked_json = r#"{"error":{"code":400,"message":"User location is not supported for the API use.","status":"FAILED_PRECONDITION"}}"#;
+        assert!(check_gemini_api_location_gate(400, blocked_json).is_err());
+
+        let allowed_json = r#"{"error":{"code":400,"message":"API key not valid. Please pass a valid API key.","status":"INVALID_ARGUMENT"}}"#;
+        assert!(check_gemini_api_location_gate(400, allowed_json).is_ok());
     }
 }

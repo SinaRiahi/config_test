@@ -349,19 +349,29 @@ export default function App() {
           lower.includes('china') ||
           lower.includes('.cn') ||
           lower.includes('russia') ||
-          lower.includes('.ru'));
-      const isApiBlocked =
-        settings.checkGeminiApi && !isExplicitlyBlockedRegion && idx % 11 === 7;
+          lower.includes('.ru') ||
+          lower.includes('hk') ||
+          lower.includes('hong kong'));
+      const isDocsRedirectBlocked =
+        settings.checkAiStudioWeb && !isExplicitlyBlockedRegion && idx % 7 === 4;
+      const isGeminiLocationBlocked =
+        settings.checkGeminiApi &&
+        !isExplicitlyBlockedRegion &&
+        !isDocsRedirectBlocked &&
+        idx % 11 === 7;
 
       let status: AiStudioVerificationStatus = 'working';
-      let detail = 'Verified: GeoIP OK · AI Studio 200 · Gemini API OK';
+      let detail = 'Verified · App OK (No Docs Redirect) · Google GeoIP Passed';
 
       if (isExplicitlyBlockedRegion) {
         status = 'region_blocked';
-        detail = 'Geo-Blocked: Unsupported region';
-      } else if (isApiBlocked) {
-        status = 'api_blocked';
-        detail = 'API Blocked: Gemini API returned HTTP 403';
+        detail = 'Geo-Blocked · Egress IP in unsupported country';
+      } else if (isDocsRedirectBlocked) {
+        status = 'region_blocked';
+        detail = 'Redirected to available-regions docs (IP flagged by Google)';
+      } else if (isGeminiLocationBlocked) {
+        status = 'region_blocked';
+        detail = "Google GeoIP rejected: 'User location is not supported'";
       }
 
       const timerId = window.setTimeout(() => {
@@ -430,7 +440,7 @@ export default function App() {
   }, [selectedRustFile]);
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-[#050507] text-zinc-900 dark:text-zinc-100 flex flex-col font-['Plus_Jakarta_Sans',sans-serif] transition-colors duration-200">
+    <div className="min-h-screen bg-[#f5f3ff] dark:bg-[#0b081b] text-[#130f2b] dark:text-slate-100 flex flex-col font-['Plus_Jakarta_Sans',sans-serif] transition-colors duration-200">
       {/* Toast Notifications */}
       <Toast toasts={toasts} onDismiss={dismissToast} />
 

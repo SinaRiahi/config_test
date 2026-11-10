@@ -8,88 +8,30 @@ mod fetcher;
 mod gui;
 mod tester;
 
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use clap::Parser;
 use cli::{run_cli, CliArgs};
 use eframe::egui;
 use gui::VpnCheckerApp;
 use std::sync::Arc;
 
-/// Generates a crisp 32x32 RGBA application icon (Monochrome Shield + Emerald Verification Node)
-/// so the compiled standalone .exe has a custom taskbar/titlebar icon with zero external asset files.
+pub const APP_ICON_WIDTH: usize = 48;
+pub const APP_ICON_HEIGHT: usize = 48;
+
+/// Base64-encoded 48x48 raw RGBA pixels of the custom Winged-V & Neon-Check App Icon
+const APP_ICON_RGBA_B64: &str = "fH6jAG5xmgBvcZsAcnKfAH16qQCKhrkGjoe6Sn12p5R/fK+/goO314OGu9uFib7bh43A24iRwtuLlsXaj5vI2pOgy9qYps7am6vR2qCw1Nqmttfaq7vb2q/A3tqxw9/assTg2q/C4Nqrv97aprrb2qC12Nuar9TalanS2o+iz9qLm8vbh5bI24OSxduBjsLbf4u/3HyIu915g7bXdHurvHRyooyFgrZCgH+zBHZ4pQBucpwAbnWeAG14ngB6hKcAbnGaAGBjkABgYpEAZGSVAG9qnEdfW43PV1WN/15dnv9dV5r/WVCV/1xRl/9fVZz/Y1ih/2Vbpf9nXqn/amGt/21lsv9xabb/dG27/3dywP96dcT/fHjG/316yf9+fMr/fn3L/318yv96esj/eHfG/3Nzwv9vb77/a2u5/2hmtP9kY67/YF+q/11cpf9aWqH/WFec/1ZUmP9WVZb/W12d/15jnf9ZXJD/XV2OyGlpmUBgZJIAYGiUAF5qlABteJ4AbnGaAGBjkABgYpEGXFiHiURCdPpMSIT/PDNw/y0lYf8tJGH/MCZl/zIpav80LG//Ni5z/zkxd/87M3z/PTaB/z84hf9CO4j/RD2L/0U/j/9IQZT/SEKV/0lEl/9KRZn/SUWY/0lFmP9IRZb/R0SV/0VBkf9CP43/QT6K/z47hf86OYD/ODd7/zY1d/8zMXL/MC5t/y4saf8tKmT/Kihg/yspYP89O3L/UFKK/0dKe/dbW4h7YGiUA15qlABteJ4AbXCYAF5ijgBbWISKMzNj/zYwaP8nH1b/Jx9X/ykhXP8sJGD/Lidl/zAqav8zLG3/NS5x/zcxdP85M3j/OzV9/z04gf8/OYT/QDuH/0E8if9DPo3/RD+P/0VAkP9FQZH/RUKQ/0RBj/9EQY7/Q0CO/0E/i/9APoj/Pz6H/zw6gf84OHr/NjV2/zU0dP8xMW//Ly9r/y0sZ/8sLGT/KChe/yYmWf8kI1T/JSRU/zo5bv87PW7/XGGMe1xqlQBreJ4AZmqUAFdZhkwuLFf7KidZ/yQfU/8lHlT/Jh9X/ygiWv8qJF//LSdj/y8pZv8xLGn/Mi9t/zUxcf82M3T/NzR3/zg2ev87OH3/PDqB/z07hP9APYj/Pz6J/0A/iv9AP4r/QT+K/0A/if8/P4n/Pz+J/z49hf89PYP/PT2C/zs6fv84OHr/NjZ2/zU1c/8yM27/MDFr/y4vaP8tLmX/KSpf/ycnWv8lJVb/JCRU/yQlVP8vLl7/Mzdi91Vljz5jdJoAYWiSCD9BadUfH0z/HxxN/yIdT/8jHlP/JR9X/yYhWf8oJF3/KyZh/y0pY/8uK2b/MC5q/zEwbf8yMnD/NDNz/zU1df83N3j/OTh7/zo6ff88O4D/PDyC/zw9g/8+Pof/Pj6H/z09g/88PYP/Oz6E/zk7f/84Onz/ODp8/zY3eP80NnT/MzRx/zIybv8uMGn/LS5m/yssY/8rLGL/Jylc/yUnWP8kJlb/IiRS/yAiTv8gIE3/IyNP/0JMdsVhcZoDXWKITycpUv8dG0j/HhtM/yAcT/8iHVH/JCBW/yYiWf8nJFv/Kidf/yooYf8sK2P/Li1m/y8vaf8xMGz/MjJw/zM1dP81NnX/Njd3/zg5e/85Onz/Ojt+/zs/hf9WXqv/T1el/zk+g/84PH//ODt+/ztAgf84Pn//NTp6/zM2df8xNHD/MDJt/y8ya/8tMGf/Ky1j/yotYf8qK2D/Jila/yYoWv8jJlX/ISRR/x8iTv8eH0z/Hh1I/y0xXP5ea5E/TlJzlSEjT/8dG0f/HhtK/yEdUf8iHlL/IyBT/yYjWP8oJVr/KSdd/yopX/8rK2L/LC1l/y0vZ/8uMGn/MDJt/zg+ef8zNnT/OT19/zo+fv88QIL/PUGE/z1DiP9aZK3/VV+q/z1FiP86QoP/OkKD/zpChP8+R4f/PUeE/zM4dP8vNG7/LzVv/y0yav8tMGj/Ki9k/y03a/8oLF7/Jipa/yUoWP8iJlT/ISZU/yAkUv8dIEz/HB1I/x8kTv9QWXyFR01zxCIjUf8dGUj/HxtK/1lZjv8/PXT/JSJa/yckWv8oJlz/KSlf/ygpXv8pKmH/Kyxj/ywvZ/8tL2j/LjFq/zU5df84PXv/OkB+/zg+ff85P33/NTl4/zY8ff84PoL/Nz6D/zg/hP86Q4b/OUKD/zM6ef80O3j/Nz98/zU8e/8uNG//OEF+/yswZ/8rLmT/KC5i/ycuYf8oL2L/JStc/yIqWv8hK13/PVF+/01kjv8eIU3/Gx1H/yEmUv9HUHO1REpy1yIiUv8cGUn/HhtK/0dKhP9ZYZn/Zm+h/1ZbjP80NXD/LzBu/y4va/8sLWf/NjVy/zs/ef81OXf/NTt3/zQ4df82O3j/OT9+/z9FiP9MVZr/UmCj/1Fipv9VZ6v/Vmut/1Ztrv9XdbH/Sluh/0VWl/85RYf/OUKE/zM8e/8zO3r/MTp5/zA5cf8uOG//KTVu/yk4c/8qO3f/MER8/01um/9bibH/Tnel/z1Zh/8cIEv/Gx5I/yInVf9GTnHHQ0pz2SQkVf8cGUb/GxhE/y4vXv9BRYH/PEN//11onf+DkLn/doOv/2hxpf9QVZH/Sk2P/0FIjP85QID/Nj58/zY9fP9BSov/TVia/0RQjf87RX7/MThy/zI5dP87TIr/OEeG/zI7d/8yPXn/P1SN/0hknv9Ma6n/PE6S/zlJjv83SIz/NkmP/zpRmf81Upn/TG6q/1mJuv9mnsb/d6nK/1R8qv8zTIL/N1iK/yEwVP8aHkX/Gh5G/yQrW/9GT3PQREx22iUnWP8bF0T/GxdE/xYWPP9QUIn/MDVu/zA1bv86P4H/Vlue/15pp/+Dj77/kJzE/4CNuv91hLb/Xmql/1Fdov9ET5D/NDh1/zE2cf83QX3/OEOA/zpHhP9dhLn/THGq/zlFgv84Q4D/NkB+/zA2c/80QH//RWGl/0putf9egr//aZfI/3Wr0v+Fvdv/erLU/1aKvP9KcKj/MkqG/yU3af8jPW3/O1yK/xIYN/8ZHkP/GR5D/yYwXv9GUXTRRk562icpXP8bF0b/GxhG/xcVPP8lI03/SEaA/yovZv8oLmL/fWa5/1lenf9aY6f/YGu0/216wf98icX/lKPV/5ut1P+Akbn/XGmf/zpDgv8wNHD/MDNt/y81bv8yOXb/Mjl0/y80bP8vM23/MDZx/zlHiP9Ycaj/eKXK/5HH4/+Ku+H/Z5PJ/094t/9AZ6j/RGyk/0l0pf9VjLL/GClY/xw6YP83YYf/FyhK/xUePv8bIkj/GiBF/yo1Y/9HVHjQSVKA2ikrYP8aF0T/GhdD/xkXPv8QES7/LStc/0lGg/82N3P/MjZx/zs7e/8/QoX/UVud/1poq/9ugrv/dYTO/4OV4/+RpOP/lKvO/1Rilv85QoD/NDp2/zQ5df88RoL/Nj15/zM4cv8zN3H/O0N+/1htoP+DsNT/f6vj/3Sb3f9giMb/SnSt/0VupP9AaZz/NVqN/x40Zv8ePm3/JlV6/zRniP8aNFX/Dhw2/xcmRv8aJUn/GiNH/y05av9KV33PTFeF2SwvZf8aF0P/GhZB/xsZQf8sLFX/REdy/yoqWv83Nm//ODl2/zY3df80N3n/RkmV/0pNmf9NTpn/XGWp/2x6xv9/kNz/iqLg/3qVvf81Onf/MjVx/zAybv8wMm3/MzZy/zM2cf82OnT/Nz97/3Sbwv93ndz/aIfO/1V0t/8+Ypz/N1ON/zdYj/84apn/LmKI/ydbfP8rYID/JlFz/xo/YP8uZ4H/Hkhm/xk9XP8ZMVH/GSdK/zA/cP9NXYPLUFyL2S8zav8aF0P/GhZB/xsZQ/8aG0D/WFiV/2Binv9GSXv/NTpt/yovZ/8nK2T/JCpi/zM2c/9FSZb/V1Sc/1Ngo/9fbrb/e4/a/3+dzv9aaZ//Njl4/zc7ev8yNHL/MzVy/zQ3df84Pnz/V2ie/3CWzP9lg83/RGCl/zlbmP81UIv/NE+L/yZSd/8aPmH/Gjtl/x9Ebv8oVXv/MGqH/z2Nqf8zla//LX6W/1Otuv8eUmz/GStN/zJFdv9QY4jIVWGR2DI3cP8bGEb/GhZC/xsZQv8WFjf/Pjht/z88gf9LTpH/X2Cl/3Bxs/9fY5//P0N2/yoxZ/8wNHT/Q0iV/1JQnP9QX6H/Y3HA/3WO0P9rhbf/Njh6/zU1df81NXT/Ozx6/zo7e/84O3v/ZYS4/2eVz/9ooc//Pl+d/zJMiv8vRIL/IDxo/xw5Z/8uTnr/QXGb/0mFrf8/gqX/Noaj/0Gou/9k3OT/h/D1/1ve8/8fXXf/GS1Q/zRJfP9UaY7GXGiY2TY5df8cF0b/GhVA/xsZQv8YFzv/GRc8/1NKif81MnT/NTVz/0xIl/9nYLr/f3rL/1dYmv8kKF3/PkKQ/3xvwP9fZKv/Ul2n/2R2xf9vjcP/TVSU/zc1e/84NXv/OTZ8/zg2fP9RWpj/Y4jC/12Ew/9Icav/N1aS/ztdmP8qRn7/GTBZ/z5ZjP9VdrL/RHGr/zZ4oP8riaH/Z8zU/3by9/9q7fb/PtP1/zSrxv8YRWH/GStP/zhNgv9XbZPGZXCe2To+fP8cGET/GhVA/xwaQ/8aGT//ExMz/ykiUP9YRo3/Ny9u/y4rav8kJV7/NDRy/01Jk/8wMmv/LzN1/0RGkf9HS5b/R1WX/1Njrv9fe7z/Wmqp/zo1gP87NoL/PjmD/zk1fv9ZbKr/XX7C/1R3sv84VJP/L0V//yw/d/8fP2j/Jz5w/zNPiP8gSHL/GWJ6/y+dqP9/4uX/X/D1/1jt9P9D3vP/Ma7G/xlSaP8XMU7/GSdL/z1Tiv9dc5rHaHSg2T9Fhv8iH1H/JB9Q/x8dSf8eHUb/HR5D/xkfQf8kHk//OS5o/y0nWv80LGb/NC1s/y8sav80M3D/IyVW/zg8gv9FS5H/RFGT/2GNwf9Ufrr/WHKx/0RCjf8/OYf/PziG/0hIkf9YdbX/UG+1/0FgnP8wSYH/LUR6/yhGdv8YNFT/JENu/yBXdf8kd4f/O6mp/4zo4/9Q7ev/Sejs/0nl8P8tssD/Flhr/xc7Vf8YKkv/GyZN/0FXjv9ieqHHbXuk2EhRkv8kJFf/IBxL/yEfUP8mJFb/KilZ/yIjUv8aHEH/QDVq/z41aP8wK1z/KChV/yAgSv8eH0n/HyFL/y8ycP80Onf/OkKD/zpMjP9HZqH/R2Ch/1Naov9BOYn/QDiG/1Nan/9IYKX/R2ei/y9Hg/8qQnP/IzZk/yFNa/8XNVf/F0Jd/xlZaf8yiov/lO3e/1Du3/8949r/VOfr/y26xv8WXWz/FT5W/xkwUP8cKE//HihT/0Zelf9nf6PGb3yl2EVMjf8oKmL/IyFU/yUjVv8kIlT/JCNU/ykpXf8nKVf/Oi5m/1NBiP9LQYX/V06S/1tVk/9PToH/LC5d/yMkVP8sL2b/NTl2/ztHg/9BWZD/N02O/0tfnv9FQI//SUOS/0lbm/82TY7/NFGF/ylDd/8mP2r/IkVo/xxKYP8eRWD/LXSI/0iztf+a89f/V/HP/y/fwP9d7OH/KcPK/xtpd/8YRV3/GzZW/x0uUv8eK1P/IS1b/0lfmf9pgaTGb3yl2ENIh/8mJln/LTNu/y8zbP8rLGD/Kile/zEybf8nJVn/Hx5J/0IvcP88LHD/Lill/zEtav84NHb/SEV9/x4eSP8wMG3/JSlZ/zI7dP8qNHD/OFSH/zVNhf9KTZb/RkeP/y5Fff81V4j/Izho/yI6ZP8ZMVP/JWF1/xhAW/8tbYj/Ko6T/4zrxf9j9rz/JNyq/2fzx/8w18v/Gm56/xxTa/8dQWH/Iz5l/zJKb/8oOmT/HydR/0pclf9sgqbGcX6k2EJHg/8eHEb/HhpF/yMfUP8pKmL/Ozt8/2NZqv8sK2P/LC5k/xobQf81KWP/Rjd6/zgqaP8sIlj/LSdb/ycnV/8oKFz/JCdX/zs7fv81Nnf/NE19/yY7bf9BU43/PlKL/yE7bP8qUHf/HDVb/yNCaP8aRWD/IGRx/xtLY/8ecXr/ddey/3D5r/8s2aj/Ve6t/zrswf8eiIv/GFJn/zd5m/8fP2H/GytO/xsmSv8bH0T/HB9I/0lXkf9sg6bGcH2j2UNLh/8hIE7/IB5K/yUjVf8mJVj/LCtk/zw/h/88PXr/NDd0/yMtV/8PEC//FxA4/zcmZf9TOoz/Vz2N/z0xbv8YGTz/Kixk/z06gv9AOH7/HixV/yxKc/8qR3H/JUds/ydbff8XRF7/HEZj/xk+W/8icHj/FEVa/yh9hf9gyKb/a/ej/zXWp/8136D/Se+7/yOlmv8aU2b/IEtr/ylSeP8cMVP/IS1R/xwhRv8bHUP/HB9H/0pYkf9tgqXGcHui2UFHgf8gH0z/Ih9M/ygvWv8rO2L/JiVU/y4wZ/8uMG7/QkeO/y03a/8bI0n/EhIz/xEOLf8SDjD/JhlI/0cud/9HOnz/KChd/ycqYP8yLmr/FiRI/ydPc/8dRmP/H1xw/zOLmf89j4//HWNy/xlWZf8ecXb/Im98/zaZiv999a3/PuCm/yDJn/9V67b/ILun/xxicv8nXXr/L1x9/yU/aP8hMVb/HCNH/xwgRv8bHEL/HB5F/0tYkP9sgKTHbneg2UBEfv8gHk//IB5O/yMiUf8kLFr/JS5b/youYv8mJVn/NTd3/zlNhf8eI0//Hh9L/xoZP/8bGUL/Ghc//xQRNP8lHEz/Kylb/yQnXP8zM3T/JTBe/xxHXv8qd4P/W7mt/4Pxwv+A9Ln/QZ2V/yCEgf8db33/Gmxy/2zbpP865KD/JL6n/0Tju/8w0r3/FmRv/yZffP8lSnL/JD9o/yY4ZP8gK1D/GyBG/x0gR/8aGT7/HB1F/0hVjf9qe6HHanOd2TxCff8dG0f/IRxM/yMeT/8hHUv/Ih5L/y43bP8wNmv/Ky1j/ztIhP8fJU7/ISVR/x4dR/8nJ1r/Kilb/yAbSP8VFDb/Kydc/yMmW/8gJ1f/LTRn/xpPXv950Lr/YPSx/zbenP874pb/g/C6/zmjmv8eb37/VbeY/0vrov8sv63/Ksm3/0LN0f8gi5P/GVJm/zhulf8nP2n/IjFa/yItVP8aHkH/Ghs//xkZPv8XFjv/GRlA/0RQif9ldZzIZW+a2Tc9dv8YFTz/FQ4x/xcRNv8YEzj/GxY9/y8rVP8jJE//IyZS/zM5cf8pNF//IidS/yIlU/8lJ1T/Kipf/yYkWP8hIU3/HRpD/ysqXv8hJ1r/Nz97/yZRav9B0qb/Z/Sw/yzOmf8vx5j/QuWX/3Tktv9FqJn/X+yl/y3EqP8bqLD/SNHc/yqbuf8TSV3/Kl54/y9Rfv8mOmT/JDFc/xgeQf8kMlD/Fxc3/xcWOf8VEzb/Fxc9/z9Kgv9ebZfIX2iU2DI2bP8WETj/FQ40/xgRN/8YEjf/GhQ6/yciSf8iIEv/Hx9K/ycrXf8yPXH/Ghs+/yQmVP8gIEn/LCxg/z9Lh/8mKFj/GRg8/yolVv8jJ1z/HSdS/zFCb/8miID/SvOy/2Httv8hsJf/LLuZ/zrYlf9g56n/Ksef/yGaq/84y9b/OZ/S/xlgdf8WQV3/PWyV/zFQef8hL1n/Iy1Y/xcbP/8ZHT//FxY5/xcVOf8WEjb/FxY8/ztEff9XZY/NWWKO1y4xZv8VDzX/FAww/xYPNP8WDzP/FxE1/xkTN/8eGkH/IB5H/yIjT/80Pm//Kzxm/yQrUv8rMV3/JCRQ/zlDff8oJln/ISFL/yEcSf8tK2D/HSRQ/zA1af8eSWD/KqSW/0ftvf9I28H/HZqc/yKll/8cnZD/I4+i/x+hwP9Hueb/JXii/xI9V/8wYYH/MU5//ytDcP8uO2//HiNN/xcWOf8VFDb/FhI1/xYSNf8VEDP/FxQ4/zc/dv9TXojOVFuG1yosYP8UDjP/Ewsu/xYOMv8WDjL/Fg80/xkTOP8dFz3/IB1F/yEhSf8xOWj/M0N8/yElTP81O2v/Ki1a/x8fRP8sPWP/JSJP/xgYOf8xKF//IiRW/x8iTv8yOWv/J0xr/yeoov9I39n/N8PM/xmAn/8dfJ3/G3qs/z3E4/8uhcr/FUhm/yJNbv86Yo//Kj5o/y46cP9cZrP/HB5J/xcVOP8VEjT/FREz/xUQM/8UDjH/FhI3/zQ6b/9NV4HOTlaA2iYpWf8UDTH/Ewst/xUNMP8WDC//FQ0x/xcQNP8cGT//Hx9E/x8dRv8jIkz/Ix9P/zY7df8lJ1P/IB9G/yIhSf8kKEz/IBtE/xwZP/8kG0n/MSpk/yQiVP9QO4T/REOA/xpMZf8so8D/Rb7m/ymny/8Zb6n/KKnS/z6o5f8bXYP/G0hn/zRjjP8nO2j/Iy9X/yUvXf8gJ1T/ISZL/xwdP/8UEDL/FQ8x/xQPMf8UDS//FRA1/zA1aP9IUnrTSVF62yIkUv8TDC7/Ewss/xUMMP8VDC//FQ4w/xcQM/8XEDP/GBQ3/x8ZQ/8mIVT/KCRa/yomXP80MWr/JyVR/yAkR/8mIU//JyBR/yEcRv8ZFDj/Oyto/ykkXf9CMHT/PDFw/yM1Yf8jVHb/K5LK/0i/6P8krdj/R8bs/yd4tP8ZSmr/KVJ6/yU6aP8hLln/IytW/xseQv8gJkr/GBU4/xURM/8VDzL/FQ4z/xUOMv8UDS//FA8x/youXf9ETnTTRkx12x8fTP8SCi3/Eggr/xQLLf8UCy3/FQsu/xUNMP8WDTD/Fg8y/xkUOf9QS5T/OTRx/yIcR/8mH07/OC5r/z80c/8lHkv/IxtI/ygfUf8hGUX/NCRd/zcqZ/83KGn/Nihn/zMuZv8pOGf/GFdy/zOZ1/9T1/H/Qabl/yBcgv8iRm7/HzFY/yg4X/8mMVj/ICVN/yIlSP8XEzj/Fg80/xQMMf8TCy//FQsv/xQLMP8SCy3/Ew0v/ycnVv9CSW7WQ0hv2x0cSP8SCiz/Eggq/xQKLP8UCiz/FAst/xULLv8WDC//Fg0w/xkSOf8dFUH/IhtK/x8YRP8hGUb/Jx5Q/zMmYv9NN4T/TTOA/zAhWf8jGkj/GhI7/0oyef87KG3/Oypt/0czeP8XID//FjNQ/yRqif9Nw+z/LXuh/xo6X/8fLlf/HyhR/yAmT/8cH0T/Fxc4/xYUNv8XETX/GhU6/xQLMP8SCi7/FAst/xQLLv8TCi3/Ewwv/yUjUf9ARmvYP0Vp1xkYQP8SCSv/EQgq/xQJLP8UCCv/FQks/xULLv8VCy7/GQ80/xcOMv8YDzP/GRA1/x0UPf8hGET/IBhC/yUcSv8rH1T/OSdt/186n/9UMYr/MyBe/0Urcv9JMHr/SzF4/zonZP8pJFb/MzNq/yE2XP8nW3X/FjZW/xwqT/8gJ0v/IihP/x0fRP8jKEz/FhEz/xUQMf8VDzH/FQ0x/xULLv8UCi3/FAot/xQKLf8TCSv/FAot/yIfS/9ARGnRPkRlzxgWPf8RCCr/EQco/xMIKv8UCCr/FQks/xYMMP8kIE3/Fw0x/xcMMP8XDTL/GA4z/xoPNv8bEDj/IRdE/yEYRf8mG0v/KRtO/y4fV/9BKXv/MB9a/x8TP/9WNYH/WDaF/x4TPf8pIVP/LCda/yElTf8XIEP/Fx5B/x4hSf8fHkf/FhM1/x0dPv8VEDT/GBI4/xcQNf8WDjH/GA8y/xUKLP8UCi3/FAks/xQJLP8TCCv/Fgkt/yAcRv8+QmW/PkVmwhUUOf8SByn/FAYo/xQHKv8VByr/FQgr/xgNM/8iGUb/Fwsx/xcLMf8YCzP/GQ00/xoONf8bDjf/HA85/yASPv8kFkb/JxhJ/ysbUP81ImX/LB1U/x8TPP9MLXX/Qydq/x4SO/8mHE3/KyBW/0w+hv8qIlT/HxxD/xsXPf8bFDv/GRE3/xgQNv8WDjP/Fg0x/xYMMf8XDTH/GAwx/xgLMP8VCCz/Fggs/xYILP8WCCz/FQot/x0XQf9ESG2zR05zuhISMv8QCCj/FAYp/xUHKv8VByr/FQgs/xYJLP8WCS3/Fgkv/xcJL/8YCjH/GQsz/xoNNP8bDDX/HQ03/x8POv8gEDz/IhA//yQTQ/80Il//MiJe/yMVRf8gET7/HQ45/yYYSv8lGEn/KRtP/zkoZ/8lGEj/HBM8/xsROP8aDzf/HRM8/xkONP8YDDH/Fgsv/xYKL/8XCzD/Fgou/xcKMP8YCi//Fwgs/xcJLf8YCS3/Fgsw/x4YQP9JTHSxQERolCEkR/8PCir/FAcq/xUHKv8WCCz/Fgcq/xUIK/8XCSz/GAku/xgKMP8ZCzH/GQsy/xoLM/8cCzX/HQw3/x8OOv8gDzv/IRA9/yIQP/8pF07/MB5Z/ycUSP8hED//IBE9/ycZS/8tI1b/LB9V/yITQf8gET3/HxE8/xwPOf8bDjb/Gw01/xsMNP8aCzP/GAsx/xgKMP8YCi//Fwot/xcKLf8YCS7/Ggow/xkKL/8ZCjD/Gg02/yonTv9CQmiOOzhZUTdAbf8SDy7/Egcp/xYIK/8WByv/Fwcs/xYILP8YCS7/GAov/xkKMv8aCzL/Gws1/xwLNv8dDDj/Hg05/yAOO/8iDj7/Ig8//yMPQf8oE0r/KhRM/ygTSf8pFEr/JRJF/yoYT/8lE0b/JxRH/yMQQP8iEED/IhE//yAQPP8eDzr/HQ44/xwNN/8cDDb/Gws0/xoKM/8aCjL/GAov/xgJLv8ZCS//Ggox/xsLMv8bCzT/HRI5/0FDc/8+OmFNPzthCENEedUvNVv/EAos/xUHLP8WByv/Fwcr/xYIK/8XCCz/GAkv/xkJMf8bCTT/HAo2/x0LOP8fDDr/IQw7/yIOPv8kDkH/Jg5D/ycPRf8qEUr/LBJN/ysSTP8uE0//KhJL/y0VUP8pEkn/KhJL/ycPRf8lDkT/JA9C/yMNP/8gDDv/Hgw6/x4MOf8cCjb/Gwo0/xoJM/8bCjL/GQkv/xkJL/8aCTD/Gwoz/x0MNv8eDzr/OTlh/0lLgdRFQGsIVVGDAFBLiFV/hMD8MTNa/xUOMf8XCy//Fwgt/xcILf8YCS7/Ggkx/xsJM/8cCjX/Hgs4/yELO/8jDD7/JQ1B/ycOQ/8pD0b/KhBJ/ysQS/8vE1D/MRNU/zAUU/8xFFX/MBNR/zIWVf8vE1H/LxNS/ywRTf8qEEr/KRBJ/ycOR/8mDUP/JAxA/yIMPv8gDDr/HQs4/xwLNv8cCzT/Gwoy/xsJMv8cCjT/IA88/yETP/83M13/fIG+/FNSj1BaWY0Agn6/AHZxuQCNhtKTUlWP/y8sVP8gGj//HxRB/yARP/8eDjr/Hg05/yAOO/8iDz//JRFE/ykSSP8rE03/LxRS/zEWVf81GFn/Nxpd/zkcYP89Hmb/QCBq/0EhbP9CIW3/QSBs/0Eibv8/IGv/PiBp/zscZP84Gl//Nhlc/zMYWf8wFlX/LhRQ/ysTTP8oEkj/JRFE/yQQQv8kEEH/JhFF/ysXTv8pGlD/JxxI/y8pUv9ISoD/g4HMkHp4wQCGhMYAjInOAIF9yQCDfcsISEh/jiAeP/srJ07/MSxZ/y8pV/8sJlT/MCla/zUtYv85MWn/QDRx/0U4dv9LO3z/UECC/1dFif9eS5H/ZFCX/2lUnP9uV6H/clql/3dfqv95Yqz/eWOs/3dirP9zXqj/b1ul/2pWoP9mUZv/YU2V/1pHjv9SQof/TT+A/0g7e/9EOHb/QDRy/z0xbf85LWb/NSlg/zYsYf80LV3/KidO/x0dPPg/P2+IfXzDB4iF0gCTkNYAjInOAIF9yQCDfcsARkZ9ABsYNEoSDiXHFxMs/iIfQP8qKFD/MTBa/zUzXv84NWL/Pjhp/0M7b/9LP3f/U0SA/11Jiv9mT5L/bVWZ/3ZboP99Yab/g2eq/4dsrf+Jbq7/iW6t/4hsrf+DaKv/fmKn/3dcof9uVpr/Zk+T/11JjP9UQ4L/TT97/0Y8dP9COW7/Pjdq/zw2Zv84M2L/MCxZ/yYiR/8XFC39ExEnxBoZM0A/QG4AfXzDAIiF0gCTkNYAjInOAIF9yQCDfcsARkZ9ABsYNAASDiQDGBQtPhsYMoEbGDOrHBk0wBwZNcQeGzjEIBw7xCIcPsQjHUHEJh5FxCgfR8MrIEvELSFPxC8iUsQyI1bEMyVYxTQlWsU1JVvFNiVbxTUlW8UzJFnEMiRWxC8jU8UtIVDFKyFNxSkfSsUnHkbHJR5FyiMdQ8kiHEHJIh0+yCEdPcggHj3FIR4+sSEcPIQbGDM7FBEoBBoZNAA/QG4AfXzDAIiF0gCTkNYA";
+
+pub fn load_app_icon_rgba() -> Vec<u8> {
+    STANDARD
+        .decode(APP_ICON_RGBA_B64)
+        .unwrap_or_else(|_| vec![0u8; APP_ICON_WIDTH * APP_ICON_HEIGHT * 4])
+}
+
 fn build_app_icon() -> Arc<egui::IconData> {
-    let width = 32usize;
-    let height = 32usize;
-    let mut rgba = vec![0u8; width * height * 4];
-
-    for y in 0..height {
-        for x in 0..width {
-            let idx = (y * width + x) * 4;
-            let fx = x as f32 - 15.5;
-            let fy = y as f32 - 15.5;
-
-            // Rounded square background (#09090B)
-            let in_box = x >= 2 && x < 30 && y >= 2 && y < 30;
-            if !in_box {
-                continue;
-            }
-
-            // Default dark obsidian fill
-            let mut r = 9u8;
-            let mut g = 9u8;
-            let mut b = 11u8;
-
-            // Emerald verification badge in bottom-right quadrant
-            let badge_dx = x as f32 - 19.0;
-            let badge_dy = y as f32 - 19.0;
-            let badge_dist2 = badge_dx * badge_dx + badge_dy * badge_dy;
-
-            // Shield silhouette
-            let shield_width = if y < 16 {
-                9.5
-            } else {
-                (9.5 - (y as f32 - 16.0) * 0.65).max(0.0)
-            };
-            let in_shield = y >= 6 && y <= 26 && fx.abs() <= shield_width;
-            let on_shield_border =
-                in_shield && (y == 6 || (fx.abs() - shield_width).abs() < 1.35);
-
-            if badge_dist2 <= 25.0 {
-                // Emerald circle (#10B981)
-                r = 16;
-                g = 185;
-                b = 129;
-                // Dark inner check stroke
-                if (badge_dx + badge_dy).abs() < 1.4 && badge_dx > -2.5 && badge_dx < 3.0 {
-                    r = 5;
-                    g = 5;
-                    b = 7;
-                }
-            } else if on_shield_border {
-                r = 250;
-                g = 250;
-                b = 250;
-            } else if in_shield {
-                r = 24;
-                g = 24;
-                b = 27;
-            } else if x == 2 || x == 29 || y == 2 || y == 29 {
-                r = 39;
-                g = 39;
-                b = 42;
-            }
-
-            let _ = fy;
-            rgba[idx] = r;
-            rgba[idx + 1] = g;
-            rgba[idx + 2] = b;
-            rgba[idx + 3] = 255;
-        }
-    }
-
     Arc::new(egui::IconData {
-        rgba,
-        width: width as u32,
-        height: height as u32,
+        rgba: load_app_icon_rgba(),
+        width: APP_ICON_WIDTH as u32,
+        height: APP_ICON_HEIGHT as u32,
     })
 }
 
@@ -110,10 +52,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([960.0, 660.0])
-            .with_min_inner_size([680.0, 460.0])
+            .with_inner_size([1120.0, 740.0])
+            .with_min_inner_size([820.0, 540.0])
             .with_icon(build_app_icon())
-            .with_title("VPN Checker · AI Studio"),
+            .with_title("VPN Config Checker · AI Studio Deep Verifier"),
         ..Default::default()
     };
 

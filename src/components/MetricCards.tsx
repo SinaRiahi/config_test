@@ -17,50 +17,60 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
   onOpenSettings,
 }) => {
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
-      <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-zinc-100 dark:bg-zinc-900 flex items-center justify-center text-zinc-600 dark:text-zinc-400">
-            <Layers className="w-3.5 h-3.5" />
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="bg-white dark:bg-[#130f2b] border border-[#d1c9f4] dark:border-[#34296e] rounded-xl px-4 py-3.5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-[#ede9fe] dark:bg-[#1c163d] flex items-center justify-center text-sky-600 dark:text-sky-400">
+            <Layers className="w-4 h-4" />
           </div>
           <div>
-            <div className="text-[11px] text-zinc-500 dark:text-zinc-400">Queue</div>
-            <div className="text-xs font-mono text-zinc-500">VLESS · HY2 · TUIC · SS</div>
+            <div className="text-xs font-semibold text-sky-600 dark:text-sky-400">
+              Configs in Queue
+            </div>
+            <div className="text-xs font-mono text-[#4c447a] dark:text-[#c4bdeb] mt-0.5">
+              VLESS · HY2 · TUIC · SS
+            </div>
           </div>
         </div>
-        <div className="text-xl font-bold font-mono tabular-nums text-zinc-900 dark:text-white">
+        <div className="text-2xl font-bold font-mono tabular-nums text-[#130f2b] dark:text-white">
           {totalCount}
         </div>
       </div>
 
-      <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-            <CheckCircle2 className="w-3.5 h-3.5" />
+      <div className="bg-white dark:bg-[#130f2b] border border-[#d1c9f4] dark:border-[#34296e] rounded-xl px-4 py-3.5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-teal-950/50 flex items-center justify-center text-teal-600 dark:text-[#2dd4bf]">
+            <CheckCircle2 className="w-4 h-4" />
           </div>
           <div>
-            <div className="text-[11px] text-zinc-500 dark:text-zinc-400">Verified</div>
-            <div className="text-xs font-mono text-emerald-600 dark:text-emerald-400">HTTP 200 · API</div>
+            <div className="text-xs font-semibold text-teal-600 dark:text-[#2dd4bf]">
+              AI Studio Verified
+            </div>
+            <div className="text-xs font-mono text-[#4c447a] dark:text-[#c4bdeb] mt-0.5">
+              No Docs Redirect · Gate OK
+            </div>
           </div>
         </div>
-        <div className="text-xl font-bold font-mono tabular-nums text-emerald-600 dark:text-emerald-400">
+        <div className="text-2xl font-bold font-mono tabular-nums text-teal-600 dark:text-[#2dd4bf]">
           {workingCount}
         </div>
       </div>
 
-      <div className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-rose-50 dark:bg-rose-950/40 flex items-center justify-center text-rose-600 dark:text-rose-400">
-            <Ban className="w-3.5 h-3.5" />
+      <div className="bg-white dark:bg-[#130f2b] border border-[#d1c9f4] dark:border-[#34296e] rounded-xl px-4 py-3.5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-rose-50 dark:bg-rose-950/40 flex items-center justify-center text-rose-600 dark:text-rose-400">
+            <Ban className="w-4 h-4" />
           </div>
           <div>
-            <div className="text-[11px] text-zinc-500 dark:text-zinc-400">Blocked</div>
-            <div className="text-xs font-mono text-zinc-500 tabular-nums">
-              {regionBlockedCount} Geo · {apiBlockedCount} API
+            <div className="text-xs font-semibold text-rose-600 dark:text-rose-400">
+              Docs / Region Blocked
+            </div>
+            <div className="text-xs font-mono text-[#4c447a] dark:text-[#c4bdeb] tabular-nums mt-0.5">
+              {regionBlockedCount} Redirect/Geo · {apiBlockedCount} API
             </div>
           </div>
         </div>
-        <div className="text-xl font-bold font-mono tabular-nums text-rose-600 dark:text-rose-400">
+        <div className="text-2xl font-bold font-mono tabular-nums text-rose-600 dark:text-rose-400">
           {regionBlockedCount + apiBlockedCount}
         </div>
       </div>
@@ -68,19 +78,23 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
       <button
         onClick={onOpenSettings}
         title="Configure Xray & sing-box paths"
-        className="bg-white dark:bg-[#0c0c0e] border border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-700 rounded-xl px-3.5 py-2.5 flex items-center justify-between text-left transition-colors"
+        className="bg-white dark:bg-[#130f2b] border border-[#d1c9f4] dark:border-[#34296e] hover:border-violet-400 dark:hover:border-sky-400 rounded-xl px-4 py-3.5 flex items-center justify-between text-left transition-colors"
       >
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-zinc-100 dark:bg-zinc-900 flex items-center justify-center text-zinc-700 dark:text-zinc-300">
-            <Cpu className="w-3.5 h-3.5" />
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-[#ede9fe] dark:bg-[#1c163d] flex items-center justify-center text-violet-600 dark:text-violet-400">
+            <Cpu className="w-4 h-4" />
           </div>
           <div>
-            <div className="text-[11px] text-zinc-500 dark:text-zinc-400">Cores</div>
-            <div className="text-xs font-mono text-zinc-900 dark:text-white">xray · sing-box</div>
+            <div className="text-xs font-semibold text-violet-600 dark:text-violet-400">
+              Portable Cores
+            </div>
+            <div className="text-xs font-mono text-[#130f2b] dark:text-white mt-0.5">
+              ./cores/xray · sing-box
+            </div>
           </div>
         </div>
-        <span className="text-xs font-mono font-semibold text-emerald-600 dark:text-emerald-400">
-          Ready
+        <span className="text-xs font-mono font-semibold text-teal-600 dark:text-[#2dd4bf]">
+          Configure →
         </span>
       </button>
     </div>

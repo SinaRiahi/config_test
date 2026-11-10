@@ -86,6 +86,16 @@ export async function downloadRustProjectZip(): Promise<void> {
   zip.file('rust-app/Cargo.toml', cargoTomlRaw);
   zip.file('rust-app/README.md', readmeMdRaw);
 
+  try {
+    const iconResp = await fetch('/assets/aistudio/icon_7a55bfa0.png');
+    if (iconResp.ok) {
+      const iconBlob = await iconResp.blob();
+      zip.file('rust-app/icon.png', iconBlob);
+    }
+  } catch {
+    // Icon is also embedded as Base64 RGBA inside main.rs
+  }
+
   for (const file of RUST_FILES) {
     if (file.path.startsWith('rust-app/src/')) {
       zip.file(file.path, file.code);
