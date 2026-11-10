@@ -17,14 +17,15 @@ In addition to manual Telegram text extraction, this version incorporates:
 ## 2. System Architecture
 
 ### 2.1 Rust Application Architecture (`rust-app/`)
-- **`Cargo.toml`**: Size-optimized profile (`opt-level = "z"`, `lto = true`, `codegen-units = 1`, `panic = "abort"`, `strip = true`).
-- **`src/main.rs`**: Application entry point with dual modes (Native `eframe` GUI at 1120×740 and headless Tokio CLI) and embedded 48x48 RGBA taskbar/titlebar icon (`build_app_icon()` from `/public/assets/aistudio/icon_7a55bfa0.png`).
+- **`Cargo.toml`**: Uses `winresource` build dependency and a Defender-safe release profile (`opt-level = 3`, `lto = "thin"`, `strip = "none"`) to preserve standard PE resource/symbol sections and avoid packer/trojan heuristics.
+- **`build.rs` & `icon.ico`**: Compiles a multi-resolution Windows `.ico` (`16x16` to `256x256`), PE `VersionInfo` metadata, and an explicit Windows 10/11 application manifest (`requestedExecutionLevel level="asInvoker"`) directly into the `.exe` binary so Explorer, Desktop shortcuts, and the Windows Taskbar display the application icon and do not trigger UAC elevation prompts.
+- **`src/main.rs`**: Application entry point with dual modes (Native `eframe` GUI at 1120×740 and headless Tokio CLI) and embedded 48x48 RGBA runtime viewport icon (`build_app_icon()`).
 - **`src/extractor.rs`**: Protocol regex matching, Base64 subscription block expansion, and streaming JSON deserializer (`serde_json::Deserializer` with byte-offset advancement).
 - **`src/converter.rs`**: Zero-dependency percent-decoder and universal converter translating VMess, VLESS (Reality/TLS/uTLS), Trojan, Hysteria 2, TUIC, Shadowsocks (SIP002 & Legacy Base64), raw JSON outbounds, and SOCKS/HTTP into sing-box or Xray configurations.
 - **`src/fetcher.rs`**: Internet Config Discovery engine that queries public Telegram channel mirrors (`https://t.me/s/<channel>`), GitHub aggregators, and subscription URLs.
 - **`src/tester.rs`**: Non-blocking async 3-Stage Deep Verification engine (`is_redirected_to_regions_doc` + `check_gemini_api_location_gate` + `kill_on_drop(true)`).
 - **`src/downloader.rs`**: Resolves the running `.exe` directory (`std::env::current_exe()`), reads/writes `<exe_dir>/config.json` (`AppConfig`), and downloads/extracts `xray.exe` and `sing-box.exe` into `<exe_dir>/cores/`.
-- **`src/gui.rs`**: High-contrast, DPI-scaled native desktop UI (`eframe`/`egui`) with Linear/Raycast Dark `Palette`, 13.5px–19px typography, 4-card KPI strip, code-editor input panel, status badges (`✓ VERIFIED`, `✕ DOCS REDIRECT`, `✕ GEO BLOCKED`), bottom URI inspector drawer, and `⚙ Settings` modal.
+- **`src/gui.rs`**: High-contrast, DPI-scaled native desktop UI (`eframe`/`egui`) with Midnight Signal `Palette`, dedicated bottom status bar (preventing toolbar text collisions), full-width stacked path cards in the Settings modal, and clean font-safe typography with zero missing-glyph boxes.
 - **`src/cli.rs`**: Headless CLI runner supporting `--fetch-sources`, `--input`, `--concurrency`, and `--filter-supported-only`.
 
 ### 2.2 Modular Frontend Architecture (`src/components/` & `src/utils/`)

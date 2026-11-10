@@ -35,6 +35,7 @@ enum StatusFilter {
 /// - Secondary background: `#0F1724`
 /// - Card / panel background: `#131D2B`
 /// - Elevated surfaces: `#1B293A`
+/// - Input background: `#0C1420`
 /// - Primary accent (Electric Cyan): `#22D3EE`
 /// - Secondary accent (Soft Cyan): `#67E8F9`
 /// - Success / Verified (Emerald): `#34D399`
@@ -44,15 +45,16 @@ enum StatusFilter {
 /// - Hairline border: `#263548`, Focus border: `#22D3EE`
 struct Palette {
     bg_canvas: Color32,
+    bg_secondary: Color32,
     bg_card: Color32,
     bg_subtle: Color32,
-    bg_row_alt: Color32,
+    bg_input: Color32,
     border: Color32,
     text_primary: Color32,
     text_secondary: Color32,
     text_muted: Color32,
     accent_cyan: Color32,
-    accent_violet: Color32,
+    accent_soft_cyan: Color32,
     green_fg: Color32,
     green_bg: Color32,
     red_fg: Color32,
@@ -64,21 +66,22 @@ struct Palette {
 impl Palette {
     fn dark() -> Self {
         Self {
-            bg_canvas: Color32::from_rgb(9, 14, 23),       // #090E17 Main background
-            bg_card: Color32::from_rgb(19, 29, 43),       // #131D2B Card and panel background
-            bg_subtle: Color32::from_rgb(27, 41, 58),     // #1B293A Elevated surfaces
-            bg_row_alt: Color32::from_rgb(15, 23, 36),    // #0F1724 Secondary background / alt row
-            border: Color32::from_rgb(38, 53, 72),        // #263548 Default border
-            text_primary: Color32::from_rgb(232, 238, 246), // #E8EEF6 Primary text
+            bg_canvas: Color32::from_rgb(9, 14, 23),          // #090E17 Main background
+            bg_secondary: Color32::from_rgb(15, 23, 36),      // #0F1724 Secondary background
+            bg_card: Color32::from_rgb(19, 29, 43),          // #131D2B Card and panel background
+            bg_subtle: Color32::from_rgb(27, 41, 58),        // #1B293A Elevated surfaces
+            bg_input: Color32::from_rgb(12, 20, 32),         // #0C1420 Input background
+            border: Color32::from_rgb(38, 53, 72),           // #263548 Default border
+            text_primary: Color32::from_rgb(232, 238, 246),  // #E8EEF6 Primary text
             text_secondary: Color32::from_rgb(148, 163, 184), // #94A3B8 Secondary text
-            text_muted: Color32::from_rgb(100, 116, 139),  // #64748B Muted text
-            accent_cyan: Color32::from_rgb(34, 211, 238), // #22D3EE Primary accent (Electric Cyan)
-            accent_violet: Color32::from_rgb(103, 232, 249), // #67E8F9 Secondary accent (Soft Cyan)
-            green_fg: Color32::from_rgb(52, 211, 153),    // #34D399 Success / Verified (Emerald)
+            text_muted: Color32::from_rgb(100, 116, 139),    // #64748B Muted text
+            accent_cyan: Color32::from_rgb(34, 211, 238),    // #22D3EE Primary accent (Electric Cyan)
+            accent_soft_cyan: Color32::from_rgb(103, 232, 249), // #67E8F9 Secondary accent (Soft Cyan)
+            green_fg: Color32::from_rgb(52, 211, 153),       // #34D399 Success / Verified (Emerald)
             green_bg: Color32::from_rgba_unmultiplied(52, 211, 153, 28),
-            red_fg: Color32::from_rgb(251, 113, 133),     // #FB7185 Error / Failed (Rose)
+            red_fg: Color32::from_rgb(251, 113, 133),        // #FB7185 Error / Failed (Rose)
             red_bg: Color32::from_rgba_unmultiplied(251, 113, 133, 28),
-            amber_fg: Color32::from_rgb(251, 191, 36),    // #FBBF24 Warning / Blocked (Amber)
+            amber_fg: Color32::from_rgb(251, 191, 36),       // #FBBF24 Warning / Blocked (Amber)
             amber_bg: Color32::from_rgba_unmultiplied(251, 191, 36, 26),
         }
     }
@@ -137,18 +140,18 @@ impl VpnCheckerApp {
         let saved = load_app_config();
         let cfg_file = get_app_config_path().to_string_lossy().to_string();
 
-        // Configure readable, crisp typography sizes across all widgets
+        // Configure crisp typography sizes across all widgets
         let mut style = (*cc.egui_ctx.style()).clone();
         style.text_styles = [
-            (TextStyle::Heading, FontId::new(19.0, FontFamily::Proportional)),
-            (TextStyle::Body, FontId::new(14.5, FontFamily::Proportional)),
-            (TextStyle::Button, FontId::new(14.0, FontFamily::Proportional)),
-            (TextStyle::Monospace, FontId::new(13.5, FontFamily::Monospace)),
-            (TextStyle::Small, FontId::new(12.5, FontFamily::Proportional)),
+            (TextStyle::Heading, FontId::new(18.0, FontFamily::Proportional)),
+            (TextStyle::Body, FontId::new(13.5, FontFamily::Proportional)),
+            (TextStyle::Button, FontId::new(13.0, FontFamily::Proportional)),
+            (TextStyle::Monospace, FontId::new(12.5, FontFamily::Monospace)),
+            (TextStyle::Small, FontId::new(11.5, FontFamily::Proportional)),
         ]
         .into();
-        style.spacing.item_spacing = Vec2::new(10.0, 8.0);
-        style.spacing.button_padding = Vec2::new(12.0, 7.0);
+        style.spacing.item_spacing = Vec2::new(8.0, 8.0);
+        style.spacing.button_padding = Vec2::new(11.0, 6.0);
         style.spacing.window_margin = Margin::same(16.0);
         cc.egui_ctx.set_style(style);
 
@@ -190,7 +193,8 @@ impl VpnCheckerApp {
             rx_cores: None,
             status_filter: StatusFilter::All,
             search_query: String::new(),
-            status_msg: "Ready — Paste configs or switch to Online Feeds to begin".to_string(),
+            status_msg: "Ready — Paste proxy links above or switch to Online Feeds to begin"
+                .to_string(),
         }
     }
 
@@ -198,26 +202,26 @@ impl VpnCheckerApp {
         let mut visuals = egui::Visuals::dark();
         visuals.panel_fill = p.bg_canvas;
         visuals.window_fill = p.bg_card;
-        visuals.extreme_bg_color = p.bg_subtle;
-        visuals.faint_bg_color = p.bg_row_alt;
+        visuals.extreme_bg_color = p.bg_input;
+        visuals.faint_bg_color = p.bg_secondary;
         visuals.window_rounding = Rounding::same(10.0);
         visuals.window_stroke = Stroke::new(1.0, p.border);
-        visuals.selection.bg_fill = p.accent_cyan.gamma_multiply(0.20);
+        visuals.selection.bg_fill = p.accent_cyan.gamma_multiply(0.18);
         visuals.selection.stroke = Stroke::new(1.0, p.accent_cyan);
         visuals.widgets.noninteractive.bg_fill = p.bg_card;
         visuals.widgets.noninteractive.bg_stroke = Stroke::new(1.0, p.border);
         visuals.widgets.noninteractive.fg_stroke = Stroke::new(1.0, p.text_primary);
-        visuals.widgets.noninteractive.rounding = Rounding::same(7.0);
+        visuals.widgets.noninteractive.rounding = Rounding::same(6.0);
         visuals.widgets.inactive.bg_fill = p.bg_subtle;
         visuals.widgets.inactive.bg_stroke = Stroke::new(1.0, p.border);
         visuals.widgets.inactive.fg_stroke = Stroke::new(1.0, p.text_primary);
-        visuals.widgets.inactive.rounding = Rounding::same(7.0);
-        visuals.widgets.hovered.bg_fill = p.accent_cyan.gamma_multiply(0.12);
+        visuals.widgets.inactive.rounding = Rounding::same(6.0);
+        visuals.widgets.hovered.bg_fill = Color32::from_rgb(33, 50, 72);
         visuals.widgets.hovered.bg_stroke = Stroke::new(1.0, p.accent_cyan);
-        visuals.widgets.hovered.rounding = Rounding::same(7.0);
+        visuals.widgets.hovered.rounding = Rounding::same(6.0);
         visuals.widgets.active.bg_fill = p.accent_cyan.gamma_multiply(0.25);
         visuals.widgets.active.bg_stroke = Stroke::new(1.0, p.accent_cyan);
-        visuals.widgets.active.rounding = Rounding::same(7.0);
+        visuals.widgets.active.rounding = Rounding::same(6.0);
         ctx.set_visuals(visuals);
     }
 
@@ -246,10 +250,10 @@ impl VpnCheckerApp {
         }
     }
 
-    fn paste_from_clipboard(&mut self) -> Option<String> {
+    fn paste_from_clipboard(&self) -> Option<String> {
         arboard::Clipboard::new()
             .ok()
-            .and_then(|mut cb| cb.get_text().ok())
+            .and_then(|mut c| c.get_text().ok())
     }
 
     fn merge_configs(&mut self, incoming: Vec<String>) -> usize {
@@ -272,7 +276,7 @@ fn draw_badge(ui: &mut egui::Ui, text: &str, fg: Color32, bg: Color32) {
         .rounding(Rounding::same(5.0))
         .inner_margin(Margin::symmetric(8.0, 3.0))
         .show(ui, |ui| {
-            ui.label(RichText::new(text).color(fg).strong().size(12.0));
+            ui.label(RichText::new(text).color(fg).strong().size(11.5));
         });
 }
 
@@ -340,228 +344,247 @@ impl eframe::App for VpnCheckerApp {
             let mut close_clicked = false;
             let mut save_needed = false;
 
-            egui::Window::new("⚙ Application Settings & Core Binaries")
+            egui::Window::new("Application Settings & Core Binaries")
                 .collapsible(false)
                 .resizable(false)
                 .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+                .default_width(640.0)
+                .min_width(640.0)
                 .show(ctx, |ui| {
-                    ui.set_width(580.0);
+                    ui.set_width(620.0);
 
+                    // Portable config path box
                     egui::Frame::none()
-                        .fill(p.bg_subtle)
+                        .fill(p.bg_input)
                         .stroke(Stroke::new(1.0, p.border))
                         .rounding(Rounding::same(6.0))
                         .inner_margin(Margin::symmetric(12.0, 8.0))
                         .show(ui, |ui| {
-                            ui.horizontal(|ui| {
+                            ui.set_width(ui.available_width());
+                            ui.horizontal_wrapped(|ui| {
                                 ui.label(
                                     RichText::new("Portable Config (.exe dir):")
                                         .color(p.text_secondary)
-                                        .size(12.5),
+                                        .size(12.0),
                                 );
                                 ui.label(
                                     RichText::new(&self.config_file_path)
                                         .monospace()
-                                        .size(12.5)
+                                        .size(12.0)
                                         .color(p.accent_cyan),
                                 );
                             });
                         });
 
-                    ui.add_space(8.0);
+                    ui.add_space(10.0);
 
-                    // Proxy Core Paths
-                    ui.label(
-                        RichText::new("Proxy Core Executables (xray & sing-box)")
-                            .strong()
-                            .size(15.0),
-                    );
-                    ui.label(
-                        RichText::new(
-                            "Stored in ./cores/ next to this .exe. Click Auto-Download to install from GitHub.",
-                        )
-                        .color(p.text_secondary)
-                        .size(12.5),
-                    );
-                    ui.add_space(4.0);
-
-                    egui::Grid::new("settings_paths_grid")
-                        .num_columns(3)
-                        .spacing([10.0, 8.0])
-                        .show(ui, |ui| {
-                            ui.label(RichText::new("xray.exe:").monospace());
-                            if ui
-                                .add(
-                                    egui::TextEdit::singleline(&mut self.xray_path)
-                                        .desired_width(380.0),
+                    // Proxy Core Paths Section
+                    ui.horizontal(|ui| {
+                        ui.vertical(|ui| {
+                            ui.label(
+                                RichText::new("Proxy Core Executables (xray & sing-box)")
+                                    .strong()
+                                    .size(14.5)
+                                    .color(p.text_primary),
+                            );
+                            ui.label(
+                                RichText::new(
+                                    "Stored in ./cores/ next to this .exe. Click Auto-Download to install from GitHub.",
                                 )
-                                .changed()
-                            {
-                                save_needed = true;
-                            }
-                            if ui.button("📁 Browse").clicked() {
-                                if let Some(path) = rfd::FileDialog::new()
-                                    .add_filter("Executable", &["exe"])
-                                    .pick_file()
-                                {
-                                    self.xray_path = path.to_string_lossy().to_string();
-                                    save_needed = true;
-                                }
-                            }
-                            ui.end_row();
-
-                            ui.label(RichText::new("sing-box.exe:").monospace());
-                            if ui
-                                .add(
-                                    egui::TextEdit::singleline(&mut self.singbox_path)
-                                        .desired_width(380.0),
-                                )
-                                .changed()
-                            {
-                                save_needed = true;
-                            }
-                            if ui.button("📁 Browse").clicked() {
-                                if let Some(path) = rfd::FileDialog::new()
-                                    .add_filter("Executable", &["exe"])
-                                    .pick_file()
-                                {
-                                    self.singbox_path = path.to_string_lossy().to_string();
-                                    save_needed = true;
-                                }
-                            }
-                            ui.end_row();
-
-                            ui.label(RichText::new("v2rayN.exe:").monospace());
-                            if ui
-                                .add(
-                                    egui::TextEdit::singleline(&mut self.v2rayn_path)
-                                        .desired_width(380.0),
-                                )
-                                .changed()
-                            {
-                                save_needed = true;
-                            }
-                            if ui.button("📁 Browse").clicked() {
-                                if let Some(path) = rfd::FileDialog::new()
-                                    .add_filter("Executable", &["exe"])
-                                    .pick_file()
-                                {
-                                    self.v2rayn_path = path.to_string_lossy().to_string();
-                                    save_needed = true;
-                                }
-                            }
-                            ui.end_row();
+                                .color(p.text_secondary)
+                                .size(12.0),
+                            );
                         });
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            let dl_btn = egui::Button::new(
+                                RichText::new(if self.is_downloading {
+                                    "Downloading..."
+                                } else {
+                                    "Auto-Install Cores"
+                                })
+                                .strong()
+                                .color(Color32::from_rgb(9, 14, 23)),
+                            )
+                            .fill(p.accent_cyan);
+
+                            if ui.add_enabled(!self.is_downloading, dl_btn).clicked() {
+                                self.is_downloading = true;
+                                self.setup_status =
+                                    "Downloading official Windows releases from GitHub..."
+                                        .to_string();
+
+                                let xray_current = self.xray_path.clone();
+                                let singbox_current = self.singbox_path.clone();
+                                let (tx, rx) = mpsc::channel(1);
+                                self.rx_cores = Some(rx);
+
+                                tokio::spawn(async move {
+                                    let dest = get_default_cores_dir();
+                                    let mut new_xray = None;
+                                    let mut new_singbox = None;
+                                    let mut notes = Vec::new();
+
+                                    if xray_current.is_empty()
+                                        || !PathBuf::from(&xray_current).is_file()
+                                    {
+                                        match download_and_extract_core(
+                                            "XTLS/Xray-core",
+                                            &["windows", "64", ".zip"],
+                                            &dest.join("xray"),
+                                            "xray.exe",
+                                        )
+                                        .await
+                                        {
+                                            Ok(p) => {
+                                                new_xray = Some(p.to_string_lossy().to_string());
+                                                notes.push("xray.exe installed".to_string());
+                                            }
+                                            Err(e) => notes.push(format!("Xray error: {e}")),
+                                        }
+                                    } else {
+                                        notes.push("xray.exe already present".to_string());
+                                    }
+
+                                    if singbox_current.is_empty()
+                                        || !PathBuf::from(&singbox_current).is_file()
+                                    {
+                                        match download_and_extract_core(
+                                            "SagerNet/sing-box",
+                                            &["windows", "amd64", ".zip"],
+                                            &dest.join("sing-box"),
+                                            "sing-box.exe",
+                                        )
+                                        .await
+                                        {
+                                            Ok(p) => {
+                                                new_singbox =
+                                                    Some(p.to_string_lossy().to_string());
+                                                notes.push("sing-box.exe installed".to_string());
+                                            }
+                                            Err(e) => notes.push(format!("sing-box error: {e}")),
+                                        }
+                                    } else {
+                                        notes.push("sing-box.exe already present".to_string());
+                                    }
+
+                                    let _ = tx
+                                        .send(CoreDownloadUpdate {
+                                            xray_path: new_xray,
+                                            singbox_path: new_singbox,
+                                            status_msg: notes.join(" · "),
+                                        })
+                                        .await;
+                                });
+                            }
+                        });
+                    });
+
+                    ui.add_space(6.0);
+
+                    // Stacked full-width cards for each binary path so inputs never squash
+                    for (label, desc, path_ref) in [
+                        (
+                            "xray.exe",
+                            "VLESS Reality / VMess / Trojan / Shadowsocks",
+                            &mut self.xray_path,
+                        ),
+                        (
+                            "sing-box.exe",
+                            "Hysteria 2 / TUIC v5 / JSON Outbounds",
+                            &mut self.singbox_path,
+                        ),
+                        (
+                            "v2rayN.exe",
+                            "Optional desktop client launcher",
+                            &mut self.v2rayn_path,
+                        ),
+                    ] {
+                        egui::Frame::none()
+                            .fill(p.bg_input)
+                            .stroke(Stroke::new(1.0, p.border))
+                            .rounding(Rounding::same(6.0))
+                            .inner_margin(Margin::symmetric(10.0, 8.0))
+                            .show(ui, |ui| {
+                                ui.set_width(ui.available_width());
+                                ui.horizontal(|ui| {
+                                    ui.label(
+                                        RichText::new(label)
+                                            .monospace()
+                                            .strong()
+                                            .color(p.text_primary)
+                                            .size(12.5),
+                                    );
+                                    ui.label(
+                                        RichText::new(format!("({desc})"))
+                                            .color(p.text_muted)
+                                            .size(11.5),
+                                    );
+                                });
+                                ui.add_space(3.0);
+                                ui.horizontal(|ui| {
+                                    let input_w = (ui.available_width() - 95.0).max(260.0);
+                                    if ui
+                                        .add_sized(
+                                            [input_w, 26.0],
+                                            egui::TextEdit::singleline(path_ref)
+                                                .font(TextStyle::Monospace),
+                                        )
+                                        .changed()
+                                    {
+                                        save_needed = true;
+                                    }
+                                    if ui
+                                        .add_sized([82.0, 26.0], egui::Button::new("Browse..."))
+                                        .clicked()
+                                    {
+                                        if let Some(path) = rfd::FileDialog::new()
+                                            .add_filter("Executable", &["exe"])
+                                            .pick_file()
+                                        {
+                                            *path_ref = path.to_string_lossy().to_string();
+                                            save_needed = true;
+                                        }
+                                    }
+                                });
+                            });
+                        ui.add_space(4.0);
+                    }
 
                     if !self.setup_status.is_empty() {
-                        ui.add_space(4.0);
+                        ui.add_space(2.0);
                         ui.label(RichText::new(&self.setup_status).color(p.green_fg).strong());
                     }
 
-                    ui.add_space(4.0);
-                    ui.horizontal(|ui| {
-                        if ui
-                            .add_enabled(
-                                !self.is_downloading,
-                                egui::Button::new(
-                                    RichText::new(
-                                        "⬇ Auto-Download xray.exe & sing-box.exe to ./cores",
-                                    )
-                                    .strong()
-                                    .color(p.accent_cyan),
-                                ),
-                            )
-                            .clicked()
-                        {
-                            self.is_downloading = true;
-                            self.setup_status =
-                                "Downloading official Windows releases from GitHub...".to_string();
-
-                            let xray_current = self.xray_path.clone();
-                            let singbox_current = self.singbox_path.clone();
-                            let (tx, rx) = mpsc::channel(1);
-                            self.rx_cores = Some(rx);
-
-                            tokio::spawn(async move {
-                                let dest = get_default_cores_dir();
-                                let mut new_xray = None;
-                                let mut new_singbox = None;
-                                let mut notes = Vec::new();
-
-                                if xray_current.is_empty()
-                                    || !PathBuf::from(&xray_current).is_file()
-                                {
-                                    match download_and_extract_core(
-                                        "XTLS/Xray-core",
-                                        &["windows", "64", ".zip"],
-                                        &dest.join("xray"),
-                                        "xray.exe",
-                                    )
-                                    .await
-                                    {
-                                        Ok(p) => {
-                                            new_xray = Some(p.to_string_lossy().to_string());
-                                            notes.push("xray.exe installed".to_string());
-                                        }
-                                        Err(e) => notes.push(format!("Xray error: {e}")),
-                                    }
-                                } else {
-                                    notes.push("xray.exe already present".to_string());
-                                }
-
-                                if singbox_current.is_empty()
-                                    || !PathBuf::from(&singbox_current).is_file()
-                                {
-                                    match download_and_extract_core(
-                                        "SagerNet/sing-box",
-                                        &["windows", "amd64", ".zip"],
-                                        &dest.join("sing-box"),
-                                        "sing-box.exe",
-                                    )
-                                    .await
-                                    {
-                                        Ok(p) => {
-                                            new_singbox = Some(p.to_string_lossy().to_string());
-                                            notes.push("sing-box.exe installed".to_string());
-                                        }
-                                        Err(e) => notes.push(format!("sing-box error: {e}")),
-                                    }
-                                } else {
-                                    notes.push("sing-box.exe already present".to_string());
-                                }
-
-                                let _ = tx
-                                    .send(CoreDownloadUpdate {
-                                        xray_path: new_xray,
-                                        singbox_path: new_singbox,
-                                        status_msg: notes.join(" · "),
-                                    })
-                                    .await;
-                            });
-                        }
-                    });
-
+                    ui.add_space(6.0);
                     ui.separator();
+                    ui.add_space(4.0);
 
-                    // 3. Runtime & Verification Options
-                    ui.label(RichText::new("Verification Engine Options").strong().size(15.0));
+                    // Runtime & Verification Options
+                    ui.label(
+                        RichText::new("Verification Engine & 3-Stage Regional Gates")
+                            .strong()
+                            .size(14.5)
+                            .color(p.text_primary),
+                    );
+                    ui.add_space(4.0);
+
                     ui.horizontal(|ui| {
-                        ui.label("Parallel Threads:");
+                        ui.label(RichText::new("Parallel Threads:").color(p.text_secondary));
                         if ui
                             .add(egui::DragValue::new(&mut self.concurrency).range(1..=50))
                             .changed()
                         {
                             save_needed = true;
                         }
-                        ui.add_space(12.0);
-                        ui.label("Timeout (sec):");
+                        ui.add_space(16.0);
+                        ui.label(RichText::new("Socket Timeout (sec):").color(p.text_secondary));
                         if ui
                             .add(egui::DragValue::new(&mut self.timeout_secs).range(5..=30))
                             .changed()
                         {
                             save_needed = true;
                         }
-                        ui.add_space(12.0);
+                        ui.add_space(16.0);
                         if ui
                             .checkbox(
                                 &mut self.strict_region_only,
@@ -573,6 +596,7 @@ impl eframe::App for VpnCheckerApp {
                         }
                     });
 
+                    ui.add_space(4.0);
                     ui.horizontal(|ui| {
                         if ui
                             .checkbox(&mut self.check_geo_ip, "Stage 1: GeoIP Check")
@@ -580,29 +604,35 @@ impl eframe::App for VpnCheckerApp {
                         {
                             save_needed = true;
                         }
+                        ui.add_space(8.0);
                         if ui
                             .checkbox(
                                 &mut self.check_ai_studio_web,
-                                "Stage 2: Docs Redirect & Web Check",
+                                "Stage 2: Docs Redirect Check",
                             )
                             .changed()
                         {
                             save_needed = true;
                         }
+                        ui.add_space(8.0);
                         if ui
-                            .checkbox(&mut self.check_gemini_api, "Stage 3: Gemini Location Gate")
+                            .checkbox(&mut self.check_gemini_api, "Stage 3: Gemini API Gate")
                             .changed()
                         {
                             save_needed = true;
                         }
                     });
 
-                    ui.add_space(10.0);
+                    ui.add_space(12.0);
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui
-                            .button(RichText::new("✓ Save & Close").strong().color(p.green_fg))
-                            .clicked()
-                        {
+                        let done_btn = egui::Button::new(
+                            RichText::new("Save & Close")
+                                .strong()
+                                .color(Color32::from_rgb(9, 14, 23)),
+                        )
+                        .fill(p.accent_cyan);
+
+                        if ui.add_sized([120.0, 30.0], done_btn).clicked() {
                             save_needed = true;
                             close_clicked = true;
                         }
@@ -639,34 +669,42 @@ impl eframe::App for VpnCheckerApp {
         egui::TopBottomPanel::top("top_header_bar")
             .frame(
                 egui::Frame::none()
-                    .fill(p.bg_card)
+                    .fill(p.bg_secondary)
                     .stroke(Stroke::new(1.0, p.border))
-                    .inner_margin(Margin::symmetric(18.0, 12.0)),
+                    .inner_margin(Margin::symmetric(18.0, 10.0)),
             )
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
-                    ui.image((self.app_icon_tex.id(), Vec2::new(30.0, 30.0)));
+                    ui.image((self.app_icon_tex.id(), Vec2::new(28.0, 28.0)));
                     ui.add_space(4.0);
                     ui.label(
                         RichText::new("VPN Config Checker")
                             .strong()
-                            .size(18.0)
+                            .size(16.5)
                             .color(p.text_primary),
                     );
-                    ui.label(
-                        RichText::new("AI Studio Deep Verifier")
-                            .size(13.0)
-                            .color(p.accent_cyan),
-                    );
+                    egui::Frame::none()
+                        .fill(p.accent_cyan.gamma_multiply(0.12))
+                        .stroke(Stroke::new(1.0, p.accent_cyan.gamma_multiply(0.35)))
+                        .rounding(Rounding::same(4.0))
+                        .inner_margin(Margin::symmetric(6.0, 2.0))
+                        .show(ui, |ui| {
+                            ui.label(
+                                RichText::new("AI Studio Deep Verifier")
+                                    .size(11.5)
+                                    .monospace()
+                                    .color(p.accent_cyan),
+                            );
+                        });
 
-                    ui.add_space(14.0);
+                    ui.add_space(12.0);
                     ui.separator();
-                    ui.add_space(8.0);
+                    ui.add_space(6.0);
 
                     if ui
                         .selectable_label(
                             self.input_mode == InputMode::PasteText,
-                            RichText::new("📋 Paste / Load File").size(14.0).strong(),
+                            RichText::new("Paste / Load Configs").size(13.0).strong(),
                         )
                         .clicked()
                     {
@@ -676,7 +714,7 @@ impl eframe::App for VpnCheckerApp {
                     if ui
                         .selectable_label(
                             self.input_mode == InputMode::DiscoverOnline,
-                            RichText::new("🌐 Online Feeds").size(14.0).strong(),
+                            RichText::new("Online Feeds").size(13.0).strong(),
                         )
                         .clicked()
                     {
@@ -687,11 +725,11 @@ impl eframe::App for VpnCheckerApp {
                     if ui
                         .button(
                             RichText::new(if self.input_collapsed {
-                                "▼ Show Input"
+                                "Show Input"
                             } else {
-                                "▲ Hide Input"
+                                "Hide Input"
                             })
-                            .size(12.5)
+                            .size(12.0)
                             .color(p.text_secondary),
                         )
                         .clicked()
@@ -701,8 +739,8 @@ impl eframe::App for VpnCheckerApp {
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui
-                            .button(RichText::new("⚙ Settings").size(14.0))
-                            .on_hover_text("Configure xray.exe, sing-box.exe, and Theme")
+                            .button(RichText::new("Settings").size(13.0))
+                            .on_hover_text("Configure xray.exe, sing-box.exe, and verification gates")
                             .clicked()
                         {
                             self.show_settings = true;
@@ -710,12 +748,12 @@ impl eframe::App for VpnCheckerApp {
 
                         if self.is_testing {
                             let stop_btn = egui::Button::new(
-                                RichText::new("■ Stop Testing")
+                                RichText::new("Stop Testing")
                                     .color(Color32::WHITE)
                                     .strong()
-                                    .size(14.0),
+                                    .size(13.0),
                             )
-                            .fill(Color32::from_rgb(225, 29, 72));
+                            .fill(p.red_fg);
                             if ui.add(stop_btn).clicked() {
                                 self.cancel_flag.store(true, Ordering::Relaxed);
                                 self.is_testing = false;
@@ -723,17 +761,17 @@ impl eframe::App for VpnCheckerApp {
                             }
                         } else {
                             let run_btn = egui::Button::new(
-                                RichText::new(format!("▶ Verify Queue ({total_queued})"))
+                                RichText::new(format!("Verify Queue ({total_queued})"))
                                     .color(if total_queued > 0 {
-                                        Color32::from_rgb(9, 13, 22)
+                                        Color32::from_rgb(9, 14, 23)
                                     } else {
                                         p.text_muted
                                     })
                                     .strong()
-                                    .size(14.0),
+                                    .size(13.0),
                             )
                             .fill(if total_queued > 0 {
-                                Color32::from_rgb(45, 212, 191) // Neon Mint-Aqua matching icon checkmark
+                                p.accent_cyan
                             } else {
                                 p.bg_subtle
                             });
@@ -744,7 +782,7 @@ impl eframe::App for VpnCheckerApp {
                                 self.is_testing = true;
                                 self.cancel_flag.store(false, Ordering::Relaxed);
                                 self.status_msg = format!(
-                                    "Testing {} configs (Checking GeoIP + Docs Redirect + Gemini API Gate)...",
+                                    "Testing {} configs (Egress GeoIP + Docs Redirect + Gemini API Gate)...",
                                     total_queued
                                 );
                                 let (tx, rx) = mpsc::channel(256);
@@ -775,7 +813,49 @@ impl eframe::App for VpnCheckerApp {
                 });
             });
 
-        // Optional Bottom Selected Config Inspector Bar
+        // Dedicated Bottom Status Bar (prevents any text collisions in the filter toolbar)
+        egui::TopBottomPanel::bottom("bottom_status_bar")
+            .frame(
+                egui::Frame::none()
+                    .fill(p.bg_secondary)
+                    .stroke(Stroke::new(1.0, p.border))
+                    .inner_margin(Margin::symmetric(18.0, 6.0)),
+            )
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let dot_color = if self.is_testing {
+                        p.accent_cyan
+                    } else if working_count > 0 {
+                        p.green_fg
+                    } else {
+                        p.text_muted
+                    };
+                    ui.label(RichText::new("●").color(dot_color).size(10.0));
+                    ui.label(
+                        RichText::new(&self.status_msg)
+                            .size(12.0)
+                            .color(p.text_secondary),
+                    );
+
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.label(
+                            RichText::new(format!(
+                                "{} threads · {}s timeout · Gates: {}{}{}",
+                                self.concurrency,
+                                self.timeout_secs,
+                                if self.check_geo_ip { "GeoIP " } else { "" },
+                                if self.check_ai_studio_web { "Web " } else { "" },
+                                if self.check_gemini_api { "GeminiAPI" } else { "" },
+                            ))
+                            .monospace()
+                            .size(11.5)
+                            .color(p.text_muted),
+                        );
+                    });
+                });
+            });
+
+        // Optional Selected Config Inspector Drawer (above status bar)
         if let Some(sel_idx) = self.selected_index {
             if let Some(sel_res) = self.results.iter().find(|r| r.index == sel_idx).cloned() {
                 egui::TopBottomPanel::bottom("selected_config_inspector")
@@ -801,26 +881,26 @@ impl eframe::App for VpnCheckerApp {
                             ui.label(
                                 RichText::new(&sel_res.detail)
                                     .color(p.text_secondary)
-                                    .size(13.0),
+                                    .size(12.5),
                             );
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                if ui.button("✕ Close").clicked() {
+                                if ui.button("Close").clicked() {
                                     self.selected_index = None;
                                 }
-                                if ui
-                                    .button(
-                                        RichText::new("📋 Copy Full URI")
-                                            .strong()
-                                            .color(p.green_fg),
-                                    )
-                                    .clicked()
-                                {
+                                let copy_btn = egui::Button::new(
+                                    RichText::new("Copy Full URI")
+                                        .strong()
+                                        .color(Color32::from_rgb(9, 14, 23)),
+                                )
+                                .fill(p.accent_cyan);
+                                if ui.add(copy_btn).clicked() {
                                     self.copy_to_clipboard(&sel_res.config);
                                     self.status_msg =
                                         format!("Copied config #{} to clipboard", sel_res.index);
                                 }
                             });
                         });
+                        ui.add_space(4.0);
                         let mut uri_preview = sel_res.config.clone();
                         ui.add(
                             egui::TextEdit::singleline(&mut uri_preview)
@@ -851,14 +931,14 @@ impl eframe::App for VpnCheckerApp {
                             ui.set_width(ui.available_width());
                             ui.label(
                                 RichText::new("CONFIGS IN QUEUE")
-                                    .size(11.5)
+                                    .size(11.0)
                                     .color(p.accent_cyan)
                                     .strong(),
                             );
-                            ui.add_space(2.0);
+                            ui.add_space(3.0);
                             ui.label(
                                 RichText::new(format!("{total_queued}"))
-                                    .size(22.0)
+                                    .size(24.0)
                                     .strong()
                                     .monospace()
                                     .color(p.text_primary),
@@ -868,8 +948,8 @@ impl eframe::App for VpnCheckerApp {
                                     "{} threads · {}s timeout",
                                     self.concurrency, self.timeout_secs
                                 ))
-                                .size(12.0)
-                                .color(p.text_secondary),
+                                .size(11.5)
+                                .color(p.text_muted),
                             );
                         });
 
@@ -883,22 +963,22 @@ impl eframe::App for VpnCheckerApp {
                             ui.set_width(ui.available_width());
                             ui.label(
                                 RichText::new("AI STUDIO VERIFIED")
-                                    .size(11.5)
+                                    .size(11.0)
                                     .color(p.green_fg)
                                     .strong(),
                             );
-                            ui.add_space(2.0);
+                            ui.add_space(3.0);
                             ui.label(
                                 RichText::new(format!("{working_count}"))
-                                    .size(22.0)
+                                    .size(24.0)
                                     .strong()
                                     .monospace()
                                     .color(p.green_fg),
                             );
                             ui.label(
                                 RichText::new("No Docs Redirect & Gemini Gate OK")
-                                    .size(12.0)
-                                    .color(p.text_secondary),
+                                    .size(11.5)
+                                    .color(p.text_muted),
                             );
                         });
 
@@ -912,22 +992,22 @@ impl eframe::App for VpnCheckerApp {
                             ui.set_width(ui.available_width());
                             ui.label(
                                 RichText::new("DOCS / REGION BLOCKED")
-                                    .size(11.5)
-                                    .color(p.red_fg)
+                                    .size(11.0)
+                                    .color(p.amber_fg)
                                     .strong(),
                             );
-                            ui.add_space(2.0);
+                            ui.add_space(3.0);
                             ui.label(
                                 RichText::new(format!("{geo_blocked_count}"))
-                                    .size(22.0)
+                                    .size(24.0)
                                     .strong()
                                     .monospace()
-                                    .color(p.red_fg),
+                                    .color(p.amber_fg),
                             );
                             ui.label(
                                 RichText::new("Redirected to available-regions or GeoIP")
-                                    .size(12.0)
-                                    .color(p.text_secondary),
+                                    .size(11.5)
+                                    .color(p.text_muted),
                             );
                         });
 
@@ -941,22 +1021,22 @@ impl eframe::App for VpnCheckerApp {
                             ui.set_width(ui.available_width());
                             ui.label(
                                 RichText::new("FAILED / UNREACHABLE")
-                                    .size(11.5)
-                                    .color(p.amber_fg)
+                                    .size(11.0)
+                                    .color(p.red_fg)
                                     .strong(),
                             );
-                            ui.add_space(2.0);
+                            ui.add_space(3.0);
                             ui.label(
                                 RichText::new(format!("{failed_or_api_count}"))
-                                    .size(22.0)
+                                    .size(24.0)
                                     .strong()
                                     .monospace()
-                                    .color(p.amber_fg),
+                                    .color(p.red_fg),
                             );
                             ui.label(
                                 RichText::new("Dead proxy or handshake timeout")
-                                    .size(12.0)
-                                    .color(p.text_secondary),
+                                    .size(11.5)
+                                    .color(p.text_muted),
                             );
                         });
                 });
@@ -984,14 +1064,14 @@ impl eframe::App for VpnCheckerApp {
                                         ui.with_layout(
                                             egui::Layout::right_to_left(egui::Align::Center),
                                             |ui| {
-                                                if ui.button("🗑 Clear").clicked() {
+                                                if ui.button("Clear").clicked() {
                                                     self.paste_text.clear();
                                                     self.configs.clear();
                                                     self.results.clear();
                                                     self.selected_index = None;
                                                     self.status_msg = "Cleared queue".to_string();
                                                 }
-                                                if ui.button("📂 Load File").clicked() {
+                                                if ui.button("Load File").clicked() {
                                                     if let Some(path) = rfd::FileDialog::new()
                                                         .add_filter(
                                                             "Config Files",
@@ -1013,7 +1093,7 @@ impl eframe::App for VpnCheckerApp {
                                                         }
                                                     }
                                                 }
-                                                if ui.button("📋 Paste & Extract").clicked() {
+                                                if ui.button("Paste & Extract").clicked() {
                                                     if let Some(clip) = self.paste_from_clipboard()
                                                     {
                                                         self.paste_text = clip;
@@ -1026,14 +1106,13 @@ impl eframe::App for VpnCheckerApp {
                                                         );
                                                     }
                                                 }
-                                                if ui
-                                                    .button(
-                                                        RichText::new("⚡ Extract Configs")
-                                                            .strong()
-                                                            .color(p.green_fg),
-                                                    )
-                                                    .clicked()
-                                                {
+                                                let extract_btn = egui::Button::new(
+                                                    RichText::new("Extract Configs")
+                                                        .strong()
+                                                        .color(Color32::from_rgb(9, 14, 23)),
+                                                )
+                                                .fill(p.accent_cyan);
+                                                if ui.add(extract_btn).clicked() {
                                                     self.configs =
                                                         extract_configs(&self.paste_text);
                                                     self.results.clear();
@@ -1046,10 +1125,10 @@ impl eframe::App for VpnCheckerApp {
                                         );
                                     });
 
-                                    ui.add_space(4.0);
+                                    ui.add_space(6.0);
                                     ui.push_id("paste_input_scroll", |ui| {
                                         egui::ScrollArea::vertical()
-                                            .max_height(96.0)
+                                            .max_height(92.0)
                                             .show(ui, |ui| {
                                                 ui.add(
                                                     egui::TextEdit::multiline(&mut self.paste_text)
@@ -1072,15 +1151,15 @@ impl eframe::App for VpnCheckerApp {
                                         );
                                         ui.label(
                                             RichText::new("(No API keys required)")
-                                                .size(12.5)
+                                                .size(12.0)
                                                 .color(p.text_secondary),
                                         );
                                     });
-                                    ui.add_space(4.0);
+                                    ui.add_space(6.0);
 
                                     egui::Grid::new("online_sources_grid")
                                         .num_columns(2)
-                                        .spacing([16.0, 6.0])
+                                        .spacing([18.0, 6.0])
                                         .show(ui, |ui| {
                                             for (idx, source) in
                                                 self.discovery_sources.iter_mut().enumerate()
@@ -1097,7 +1176,7 @@ impl eframe::App for VpnCheckerApp {
                                                             "— {}",
                                                             source.description
                                                         ))
-                                                        .size(12.5)
+                                                        .size(12.0)
                                                         .color(p.text_secondary),
                                                     );
                                                 });
@@ -1107,7 +1186,7 @@ impl eframe::App for VpnCheckerApp {
                                             }
                                         });
 
-                                    ui.add_space(6.0);
+                                    ui.add_space(8.0);
                                     ui.horizontal(|ui| {
                                         ui.label(
                                             RichText::new("Custom URL / @Channel:")
@@ -1128,19 +1207,19 @@ impl eframe::App for VpnCheckerApp {
                                             self.persist_config();
                                         }
 
+                                        let fetch_btn = egui::Button::new(
+                                            RichText::new(if self.is_fetching_online {
+                                                "Fetching Feeds..."
+                                            } else {
+                                                "Fetch Online Configs"
+                                            })
+                                            .strong()
+                                            .color(Color32::from_rgb(9, 14, 23)),
+                                        )
+                                        .fill(p.accent_cyan);
+
                                         if ui
-                                            .add_enabled(
-                                                !self.is_fetching_online,
-                                                egui::Button::new(
-                                                    RichText::new(if self.is_fetching_online {
-                                                        "⏳ Fetching Feeds..."
-                                                    } else {
-                                                        "⬇ Fetch Online Configs"
-                                                    })
-                                                    .strong()
-                                                    .color(p.accent_cyan),
-                                                ),
-                                            )
+                                            .add_enabled(!self.is_fetching_online, fetch_btn)
                                             .clicked()
                                         {
                                             self.is_fetching_online = true;
@@ -1187,7 +1266,7 @@ impl eframe::App for VpnCheckerApp {
                     ui.add_space(10.0);
                 }
 
-                // 3. Progress & Filter Bar
+                // 3. Progress Bar (when testing or results exist)
                 let done = self.results.len();
                 let progress = if total_queued > 0 {
                     done as f32 / total_queued as f32
@@ -1198,6 +1277,11 @@ impl eframe::App for VpnCheckerApp {
                 if self.is_testing || done > 0 {
                     ui.add(
                         egui::ProgressBar::new(progress)
+                            .fill(if !self.is_testing && done >= total_queued {
+                                p.green_fg
+                            } else {
+                                p.accent_cyan
+                            })
                             .desired_height(8.0)
                             .text(format!(
                                 "{done} / {total_queued} tested ({:.0}%)",
@@ -1207,94 +1291,115 @@ impl eframe::App for VpnCheckerApp {
                     ui.add_space(8.0);
                 }
 
-                ui.horizontal(|ui| {
-                    ui.add(
-                        egui::TextEdit::singleline(&mut self.search_query)
-                            .hint_text("🔍 Search server name, country (US, DE, NL), or status...")
-                            .desired_width(280.0),
-                    );
-                    if !self.search_query.is_empty() && ui.button("✕").clicked() {
-                        self.search_query.clear();
-                    }
-
-                    ui.separator();
-
-                    ui.selectable_value(
-                        &mut self.status_filter,
-                        StatusFilter::All,
-                        format!("All ({})", self.results.len()),
-                    );
-                    ui.selectable_value(
-                        &mut self.status_filter,
-                        StatusFilter::VerifiedOnly,
-                        format!("✓ Verified ({working_count})"),
-                    );
-                    ui.selectable_value(
-                        &mut self.status_filter,
-                        StatusFilter::RegionBlockedOnly,
-                        format!("✕ Docs/Region Blocked ({geo_blocked_count})"),
-                    );
-                    ui.selectable_value(
-                        &mut self.status_filter,
-                        StatusFilter::FailedOnly,
-                        format!("⚠ Failed ({failed_or_api_count})"),
-                    );
-
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui
-                            .add_enabled(
-                                working_count > 0,
-                                egui::Button::new(RichText::new("💾 Export .txt").strong()),
-                            )
-                            .clicked()
-                        {
-                            let working_links: Vec<String> = self
-                                .results
-                                .iter()
-                                .filter(|r| r.status == TestStatus::Working)
-                                .map(|r| r.config.clone())
-                                .collect();
-                            if let Some(path) = rfd::FileDialog::new()
-                                .set_file_name("aistudio_verified_configs.txt")
-                                .save_file()
-                            {
-                                let _ = std::fs::write(path, working_links.join("\n"));
+                // 4. Filter & Action Toolbar (Structured in a Card Frame with zero overlapping text)
+                egui::Frame::none()
+                    .fill(p.bg_card)
+                    .stroke(Stroke::new(1.0, p.border))
+                    .rounding(Rounding::same(8.0))
+                    .inner_margin(Margin::symmetric(12.0, 8.0))
+                    .show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.add(
+                                egui::TextEdit::singleline(&mut self.search_query)
+                                    .hint_text("Search server, country (US, DE, NL), or status...")
+                                    .desired_width(240.0),
+                            );
+                            if !self.search_query.is_empty() && ui.button("Clear").clicked() {
+                                self.search_query.clear();
                             }
-                        }
 
-                        if ui
-                            .add_enabled(
-                                working_count > 0,
-                                egui::Button::new(
-                                    RichText::new(format!("📋 Copy Verified ({working_count})"))
-                                        .strong()
-                                        .color(p.green_fg),
-                                ),
-                            )
-                            .clicked()
-                        {
-                            let working_links: Vec<String> = self
-                                .results
-                                .iter()
-                                .filter(|r| r.status == TestStatus::Working)
-                                .map(|r| r.config.clone())
-                                .collect();
-                            self.copy_to_clipboard(&working_links.join("\n"));
-                            self.status_msg =
-                                format!("Copied {working_count} verified configs to clipboard");
-                        }
+                            ui.separator();
 
-                        ui.label(
-                            RichText::new(&self.status_msg)
-                                .size(12.5)
-                                .color(p.text_secondary),
-                        );
+                            ui.selectable_value(
+                                &mut self.status_filter,
+                                StatusFilter::All,
+                                format!("All ({})", self.results.len()),
+                            );
+                            ui.selectable_value(
+                                &mut self.status_filter,
+                                StatusFilter::VerifiedOnly,
+                                format!("Verified ({working_count})"),
+                            );
+                            ui.selectable_value(
+                                &mut self.status_filter,
+                                StatusFilter::RegionBlockedOnly,
+                                format!("Blocked ({geo_blocked_count})"),
+                            );
+                            ui.selectable_value(
+                                &mut self.status_filter,
+                                StatusFilter::FailedOnly,
+                                format!("Failed ({failed_or_api_count})"),
+                            );
+
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    let export_btn = egui::Button::new(
+                                        RichText::new("Export .txt")
+                                            .strong()
+                                            .color(if working_count > 0 {
+                                                Color32::from_rgb(9, 14, 23)
+                                            } else {
+                                                p.text_muted
+                                            }),
+                                    )
+                                    .fill(if working_count > 0 {
+                                        p.accent_cyan
+                                    } else {
+                                        p.bg_subtle
+                                    });
+
+                                    if ui.add_enabled(working_count > 0, export_btn).clicked() {
+                                        let working_links: Vec<String> = self
+                                            .results
+                                            .iter()
+                                            .filter(|r| r.status == TestStatus::Working)
+                                            .map(|r| r.config.clone())
+                                            .collect();
+                                        if let Some(path) = rfd::FileDialog::new()
+                                            .set_file_name("aistudio_verified_configs.txt")
+                                            .save_file()
+                                        {
+                                            let _ = std::fs::write(path, working_links.join("\n"));
+                                        }
+                                    }
+
+                                    if ui
+                                        .add_enabled(
+                                            working_count > 0,
+                                            egui::Button::new(
+                                                RichText::new(format!(
+                                                    "Copy Verified ({working_count})"
+                                                ))
+                                                .strong()
+                                                .color(if working_count > 0 {
+                                                    p.green_fg
+                                                } else {
+                                                    p.text_muted
+                                                }),
+                                            ),
+                                        )
+                                        .clicked()
+                                    {
+                                        let working_links: Vec<String> = self
+                                            .results
+                                            .iter()
+                                            .filter(|r| r.status == TestStatus::Working)
+                                            .map(|r| r.config.clone())
+                                            .collect();
+                                        self.copy_to_clipboard(&working_links.join("\n"));
+                                        self.status_msg = format!(
+                                            "Copied {working_count} verified configs to clipboard"
+                                        );
+                                    }
+                                },
+                            );
+                        });
                     });
-                });
 
-                ui.add_space(6.0);
+                ui.add_space(8.0);
 
-                // 4. High-Readability Results Table
+                // 5. High-Readability Results Table
                 let query_lower = self.search_query.to_lowercase();
                 let filtered_results: Vec<TestResult> = self
                     .results
@@ -1349,9 +1454,9 @@ impl eframe::App for VpnCheckerApp {
                                     } else if self.is_testing {
                                         "Running 3-Stage AI Studio & Redirect Verification..."
                                     } else {
-                                        "No results match the current filter — click ▶ Verify Queue in the top right"
+                                        "No results match the current filter — click Verify Queue in the top right"
                                     })
-                                    .size(15.5)
+                                    .size(15.0)
                                     .strong()
                                     .color(p.text_secondary),
                                 );
@@ -1360,7 +1465,7 @@ impl eframe::App for VpnCheckerApp {
                                     RichText::new(
                                         "Each config is tested against: (1) Egress GeoIP · (2) AI Studio available-regions redirect check · (3) Google Gemini API internal location gate",
                                     )
-                                    .size(13.0)
+                                    .size(12.5)
                                     .color(p.text_muted),
                                 );
                                 ui.add_space(48.0);
@@ -1378,43 +1483,43 @@ impl eframe::App for VpnCheckerApp {
                                             ui.label(
                                                 RichText::new("#")
                                                     .strong()
-                                                    .size(12.5)
+                                                    .size(12.0)
                                                     .color(p.text_muted),
                                             );
                                             ui.label(
                                                 RichText::new("STATUS")
                                                     .strong()
-                                                    .size(12.5)
+                                                    .size(12.0)
                                                     .color(p.text_muted),
                                             );
                                             ui.label(
                                                 RichText::new("REGION")
                                                     .strong()
-                                                    .size(12.5)
+                                                    .size(12.0)
                                                     .color(p.text_muted),
                                             );
                                             ui.label(
                                                 RichText::new("LATENCY")
                                                     .strong()
-                                                    .size(12.5)
+                                                    .size(12.0)
                                                     .color(p.text_muted),
                                             );
                                             ui.label(
                                                 RichText::new("SERVER / REMARK")
                                                     .strong()
-                                                    .size(12.5)
+                                                    .size(12.0)
                                                     .color(p.text_muted),
                                             );
                                             ui.label(
                                                 RichText::new("VERIFICATION DIAGNOSTIC")
                                                     .strong()
-                                                    .size(12.5)
+                                                    .size(12.0)
                                                     .color(p.text_muted),
                                             );
                                             ui.label(
                                                 RichText::new("ACTION")
                                                     .strong()
-                                                    .size(12.5)
+                                                    .size(12.0)
                                                     .color(p.text_muted),
                                             );
                                             ui.end_row();
@@ -1430,7 +1535,7 @@ impl eframe::App for VpnCheckerApp {
                                                     TestStatus::Working => {
                                                         draw_badge(
                                                             ui,
-                                                            "✓ VERIFIED",
+                                                            "VERIFIED",
                                                             p.green_fg,
                                                             p.green_bg,
                                                         );
@@ -1441,16 +1546,21 @@ impl eframe::App for VpnCheckerApp {
                                                             .to_lowercase()
                                                             .contains("redirected")
                                                         {
-                                                            "✕ DOCS REDIRECT"
+                                                            "DOCS REDIRECT"
                                                         } else {
-                                                            "✕ GEO BLOCKED"
+                                                            "GEO BLOCKED"
                                                         };
-                                                        draw_badge(ui, label, p.red_fg, p.red_bg);
+                                                        draw_badge(
+                                                            ui,
+                                                            label,
+                                                            p.amber_fg,
+                                                            p.amber_bg,
+                                                        );
                                                     }
                                                     TestStatus::ApiBlocked => {
                                                         draw_badge(
                                                             ui,
-                                                            "⚠ API BLOCKED",
+                                                            "API BLOCKED",
                                                             p.amber_fg,
                                                             p.amber_bg,
                                                         );
@@ -1458,9 +1568,9 @@ impl eframe::App for VpnCheckerApp {
                                                     TestStatus::Failed => {
                                                         draw_badge(
                                                             ui,
-                                                            "✕ FAILED",
-                                                            p.text_secondary,
-                                                            p.bg_subtle,
+                                                            "FAILED",
+                                                            p.red_fg,
+                                                            p.red_bg,
                                                         );
                                                     }
                                                 }
@@ -1474,7 +1584,7 @@ impl eframe::App for VpnCheckerApp {
                                                         .color(if r.is_supported_region {
                                                             p.accent_cyan
                                                         } else {
-                                                            p.red_fg
+                                                            p.amber_fg
                                                         }),
                                                 );
 
@@ -1518,12 +1628,12 @@ impl eframe::App for VpnCheckerApp {
                                                 ui.label(
                                                     RichText::new(&r.detail)
                                                         .color(p.text_secondary)
-                                                        .size(13.0),
+                                                        .size(12.5),
                                                 );
 
                                                 ui.horizontal(|ui| {
                                                     if ui
-                                                        .button("📋 Copy")
+                                                        .button("Copy")
                                                         .on_hover_text("Copy proxy URI")
                                                         .clicked()
                                                     {
@@ -1534,8 +1644,8 @@ impl eframe::App for VpnCheckerApp {
                                                         );
                                                     }
                                                     if ui
-                                                        .button("🔍")
-                                                        .on_hover_text("Inspect URI")
+                                                        .button("Inspect")
+                                                        .on_hover_text("Inspect full URI")
                                                         .clicked()
                                                     {
                                                         self.selected_index = Some(r.index);

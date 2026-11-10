@@ -36,7 +36,7 @@ jobs:
           cargo check --target x86_64-pc-windows-msvc
           cargo test --target x86_64-pc-windows-msvc
 
-      - name: Build release executable
+      - name: Build release executable (embeds icon.ico & Win32 manifest via build.rs)
         working-directory: rust-app
         run: |
           cargo build --release --target x86_64-pc-windows-msvc
@@ -48,7 +48,7 @@ jobs:
           cp rust-app/target/x86_64-pc-windows-msvc/release/vpn-config-checker.exe dist-portable/vpn-config-checker.exe
           cat << 'EOF' > dist-portable/config.json
           {
-            "theme": "system",
+            "theme": "dark",
             "xray_path": ".\\cores\\xray\\xray.exe",
             "singbox_path": ".\\cores\\sing-box\\sing-box.exe",
             "v2rayn_path": ".\\v2rayN.exe",

@@ -27,9 +27,12 @@ clap = { version = "4.5", features = ["derive"] }
 arboard = "3.4"
 rfd = "0.15"
 
+[target.'cfg(target_os = "windows")'.build-dependencies]
+winresource = "0.1.19"
+
 [profile.release]
-opt-level = "z"        # Optimize for minimum binary size
-lto = true             # Link Time Optimization across entire binary
-codegen-units = 1      # Single codegen unit for best optimization
-panic = "abort"        # Abort on panic to remove stack unwinding bloat
-strip = true           # Strip all debug symbols to yield a ~5-8MB standalone exe
+opt-level = 3          # Standard release optimization (avoids packer/trojan heuristics in Defender)
+lto = "thin"           # Fast, clean LTO
+codegen-units = 1      # Clean single codegen unit
+strip = "none"         # Keep standard PE symbol/resource sections intact for Windows Defender trust
+

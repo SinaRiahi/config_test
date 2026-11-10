@@ -3,6 +3,7 @@ import { RustSourceFile } from '../types';
 
 import workflowYmlRaw from '../../.github/workflows/build.yml?raw';
 import cargoTomlRaw from '../../rust-app/Cargo.toml?raw';
+import buildRsRaw from '../../rust-app/build.rs?raw';
 import readmeMdRaw from '../../rust-app/README.md?raw';
 import mainRsRaw from '../../rust-app/src/main.rs?raw';
 import fetcherRsRaw from '../../rust-app/src/fetcher.rs?raw';
@@ -26,8 +27,14 @@ export const RUST_FILES: RustSourceFile[] = [
   {
     path: 'rust-app/Cargo.toml',
     filename: 'Cargo.toml',
-    description: 'Cargo manifest with size-optimized release profile (LTO, strip, opt-level=z)',
+    description: 'Cargo manifest with winresource icon/manifest embedding and Defender-safe release profile',
     code: cargoTomlRaw,
+  },
+  {
+    path: 'rust-app/build.rs',
+    filename: 'build.rs',
+    description: 'Windows resource compiler script: embeds multi-size icon.ico, VersionInfo, and asInvoker UAC manifest',
+    code: buildRsRaw,
   },
   {
     path: 'rust-app/src/main.rs',
@@ -84,7 +91,18 @@ export async function downloadRustProjectZip(): Promise<void> {
 
   zip.file('.github/workflows/build.yml', workflowYmlRaw);
   zip.file('rust-app/Cargo.toml', cargoTomlRaw);
+  zip.file('rust-app/build.rs', buildRsRaw);
   zip.file('rust-app/README.md', readmeMdRaw);
+
+  try {
+    const icoResp = await fetch('/assets/aistudio/icon.ico');
+    if (icoResp.ok) {
+      const icoBlob = await icoResp.blob();
+      zip.file('rust-app/icon.ico', icoBlob);
+    }
+  } catch {
+    // Fallback if offline
+  }
 
   try {
     const iconResp = await fetch('/assets/aistudio/icon_7a55bfa0.png');
