@@ -1,25 +1,28 @@
 import React, { useRef, useState } from 'react';
 import {
-  Globe2,
   UploadCloud,
-  FileText,
+  Terminal,
   Radio,
   CheckCircle2,
-  ChevronUp,
-  ChevronDown,
   Zap,
   Trash2,
   Sparkles,
+  ClipboardPaste,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { DiscoveryFeed } from '../types';
 
 interface ExtractorPanelProps {
+  sourceMode: 'paste' | 'discover';
+  setSourceMode: (mode: 'paste' | 'discover') => void;
   inputText: string;
   setInputText: (text: string) => void;
   rawConfigCount: number;
   onExtract: () => void;
   onClear: () => void;
   onLoadSample: () => void;
+  onPasteAndExtract: () => void;
   onFileLoaded?: (filename: string, count: number) => void;
   discoveryFeeds: DiscoveryFeed[];
   onToggleFeed: (id: string) => void;
@@ -31,12 +34,15 @@ interface ExtractorPanelProps {
 }
 
 export const ExtractorPanel: React.FC<ExtractorPanelProps> = ({
+  sourceMode,
+  setSourceMode,
   inputText,
   setInputText,
   rawConfigCount,
   onExtract,
   onClear,
   onLoadSample,
+  onPasteAndExtract,
   onFileLoaded,
   discoveryFeeds,
   onToggleFeed,
@@ -48,7 +54,6 @@ export const ExtractorPanel: React.FC<ExtractorPanelProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [sourceMode, setSourceMode] = useState<'paste' | 'discover'>('paste');
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const handleFileUpload = (file: File) => {
@@ -74,48 +79,31 @@ export const ExtractorPanel: React.FC<ExtractorPanelProps> = ({
   };
 
   return (
-    <div className="bg-white dark:bg-[#130f2b] border border-[#d1c9f4] dark:border-[#34296e] rounded-xl p-4 shadow-xs dark:shadow-none">
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <div className="bg-[#131D2B] border border-[#263548] rounded-xl overflow-hidden transition-colors shadow-xs">
+      {/* Code Editor / Terminal Header Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 bg-[#0F1724] border-b border-[#263548]">
         <div className="flex items-center gap-3">
-          <div className="flex items-center bg-[#ede9fe] dark:bg-[#1c163d] p-1 rounded-lg border border-[#d1c9f4] dark:border-[#34296e] text-xs sm:text-sm">
-            <button
-              onClick={() => {
-                setSourceMode('paste');
-                setIsCollapsed(false);
-              }}
-              className={`px-3 py-1 rounded-md transition-all flex items-center gap-1.5 ${
-                sourceMode === 'paste'
-                  ? 'bg-white dark:bg-[#282054] text-[#130f2b] dark:text-white font-semibold shadow-xs'
-                  : 'text-[#4c447a] dark:text-[#c4bdeb] hover:text-[#130f2b] dark:hover:text-white'
-              }`}
-            >
-              <FileText className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400" />
-              <span>Paste / File</span>
-            </button>
-            <button
-              onClick={() => {
-                setSourceMode('discover');
-                setIsCollapsed(false);
-              }}
-              className={`px-3 py-1 rounded-md transition-all flex items-center gap-1.5 ${
-                sourceMode === 'discover'
-                  ? 'bg-white dark:bg-[#282054] text-[#130f2b] dark:text-white font-semibold shadow-xs'
-                  : 'text-[#4c447a] dark:text-[#c4bdeb] hover:text-[#130f2b] dark:hover:text-white'
-              }`}
-            >
-              <Globe2 className="w-3.5 h-3.5 text-violet-500 dark:text-violet-400" />
-              <span>Online Feeds</span>
-            </button>
+          {/* Subtle terminal dots */}
+          <div className="flex items-center gap-1.5 opacity-60">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#FB7185]" />
+            <span className="w-2.5 h-2.5 rounded-full bg-[#FBBF24]" />
+            <span className="w-2.5 h-2.5 rounded-full bg-[#34D399]" />
           </div>
 
-          <span className="text-xs sm:text-sm font-mono text-[#4c447a] dark:text-[#c4bdeb] tabular-nums">
-            {rawConfigCount} nodes extracted
-          </span>
+          <div className="flex items-center gap-2 text-xs font-mono">
+            <Terminal className="w-3.5 h-3.5 text-[#22D3EE]" />
+            <span className="text-[#E8EEF6] font-medium">
+              {sourceMode === 'paste' ? 'config_input.txt' : 'online_discovery_streams'}
+            </span>
+            <span className="text-[#64748B]">·</span>
+            <span className="text-[#94A3B8] tabular-nums">
+              {rawConfigCount} extracted
+            </span>
+          </div>
         </div>
 
-        {/* Action Strip */}
-        <div className="flex items-center gap-2">
+        {/* Action Buttons Toolbar */}
+        <div className="flex items-center gap-1.5 shrink-0">
           <input
             type="file"
             ref={fileInputRef}
@@ -128,55 +116,73 @@ export const ExtractorPanel: React.FC<ExtractorPanelProps> = ({
             }}
           />
 
-          {sourceMode === 'paste' && !isCollapsed && (
+          {sourceMode === 'paste' && (
             <>
+              {/* Load File */}
               <button
                 onClick={() => fileInputRef.current?.click()}
-                title="Upload .txt / .json file"
-                className="px-3 py-1.5 text-xs font-medium text-[#4c447a] dark:text-[#c4bdeb] hover:text-[#130f2b] dark:hover:text-white bg-[#ede9fe] dark:bg-[#1c163d] border border-[#d1c9f4] dark:border-[#34296e] rounded-lg transition-colors flex items-center gap-1.5"
+                title="Upload .txt, .json, or .conf file"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-[#94A3B8] hover:text-[#E8EEF6] bg-[#1B293A] hover:bg-[#182435] border border-[#263548] rounded-lg transition-colors"
               >
-                <UploadCloud className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Load File</span>
+                <UploadCloud className="w-3.5 h-3.5 text-[#22D3EE]" />
+                <span>Load File</span>
               </button>
+
+              {/* Paste & Extract */}
+              <button
+                onClick={onPasteAndExtract}
+                title="Paste clipboard and immediately extract configurations"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-[#94A3B8] hover:text-[#E8EEF6] bg-[#1B293A] hover:bg-[#182435] border border-[#263548] rounded-lg transition-colors"
+              >
+                <ClipboardPaste className="w-3.5 h-3.5 text-[#22D3EE]" />
+                <span className="hidden sm:inline">Paste &amp; Extract</span>
+              </button>
+
+              {/* Sample */}
               <button
                 onClick={onLoadSample}
-                title="Load sample configs"
-                className="px-3 py-1.5 text-xs font-medium text-[#4c447a] dark:text-[#c4bdeb] hover:text-[#130f2b] dark:hover:text-white bg-[#ede9fe] dark:bg-[#1c163d] border border-[#d1c9f4] dark:border-[#34296e] rounded-lg transition-colors flex items-center gap-1.5"
+                title="Load sample configurations"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-[#94A3B8] hover:text-[#E8EEF6] bg-[#1B293A] hover:bg-[#182435] border border-[#263548] rounded-lg transition-colors"
               >
-                <Sparkles className="w-3.5 h-3.5" />
+                <Sparkles className="w-3.5 h-3.5 text-[#67E8F9]" />
                 <span className="hidden sm:inline">Sample</span>
               </button>
+
+              {/* Clear */}
               <button
                 onClick={onClear}
-                title="Clear all"
-                className="p-1.5 text-rose-600 dark:text-rose-400 hover:text-rose-700 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-lg transition-colors"
+                title="Clear input text and queue"
+                className="p-1.5 text-[#64748B] hover:text-[#FB7185] bg-[#1B293A] hover:bg-[#FB7185]/10 border border-[#263548] rounded-lg transition-colors"
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-3.5 h-3.5" />
               </button>
+
+              {/* Primary Extract Configs: Electric Cyan button with dark text */}
               <button
                 onClick={onExtract}
-                title="Extract configurations"
-                className="px-3.5 py-1.5 text-xs font-bold text-[#0b081b] bg-[#2dd4bf] hover:bg-[#14b8a6] rounded-lg transition-colors flex items-center gap-1.5 shadow-xs"
+                title="Extract configs from text"
+                className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-[#090E17] bg-[#22D3EE] hover:bg-[#67E8F9] active:bg-[#06B6D4] rounded-lg transition-all shadow-sm"
               >
-                <Zap className="w-3.5 h-3.5" />
+                <Zap className="w-3.5 h-3.5 fill-current" />
                 <span>Extract Configs</span>
               </button>
             </>
           )}
 
+          {/* Collapse / Expand */}
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="p-1.5 text-[#4c447a] hover:text-[#130f2b] dark:text-[#c4bdeb] dark:hover:text-white bg-[#ede9fe] dark:bg-[#1c163d] border border-[#d1c9f4] dark:border-[#34296e] rounded-lg transition-colors"
-            title={isCollapsed ? 'Expand Input' : 'Collapse Input'}
+            className="p-1.5 text-[#94A3B8] hover:text-[#E8EEF6] bg-[#1B293A] hover:bg-[#182435] border border-[#263548] rounded-lg transition-colors"
+            title={isCollapsed ? 'Expand panel' : 'Collapse panel'}
           >
-            {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+            {isCollapsed ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
           </button>
         </div>
       </div>
 
-      {/* Collapsible Body */}
+      {/* Editor Body */}
       {!isCollapsed && (
-        <div className="mt-3">
+        <div className="p-3.5 bg-[#090E17]/80">
           {sourceMode === 'paste' ? (
             <div
               onDragOver={(e) => {
@@ -185,31 +191,35 @@ export const ExtractorPanel: React.FC<ExtractorPanelProps> = ({
               }}
               onDragLeave={() => setIsDragging(false)}
               onDrop={handleDrop}
-              className={`relative rounded-lg transition-all ${
-                isDragging ? 'ring-2 ring-sky-400 ring-offset-2 dark:ring-offset-[#0b081b]' : ''
-              }`}
+              className={`relative rounded-lg border transition-all ${
+                isDragging
+                  ? 'border-[#22D3EE] ring-1 ring-[#22D3EE]'
+                  : 'border-[#263548] focus-within:border-[#22D3EE] focus-within:ring-1 focus-within:ring-[#22D3EE]/30'
+              } bg-[#0C1420]`}
             >
               <textarea
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
-                placeholder="Paste proxy links, Base64 subscriptions, or JSON (or drag & drop a file)..."
+                placeholder="// Paste Telegram dumps, vless://, vmess://, hysteria2://, trojan://, ss:// links, Base64 blocks, or JSON outbounds (or drag & drop file here)..."
                 rows={4}
-                className="w-full bg-[#f5f3ff] dark:bg-[#0b081b] border border-[#d1c9f4] dark:border-[#34296e] rounded-lg p-3 text-xs sm:text-sm font-mono text-[#130f2b] dark:text-slate-100 focus:outline-none focus:border-sky-400 transition-colors resize-y leading-relaxed"
+                className="w-full bg-transparent p-3.5 text-xs sm:text-[13px] font-mono text-[#E8EEF6] placeholder-[#64748B] focus:outline-none resize-y leading-relaxed selection:bg-[#22D3EE]/25"
               />
+
               {isDragging && (
-                <div className="absolute inset-0 bg-[#130f2b]/85 backdrop-blur-xs flex items-center justify-center rounded-lg pointer-events-none">
-                  <span className="text-sm font-semibold text-white flex items-center gap-2">
-                    <UploadCloud className="w-4 h-4 text-sky-400" />
-                    <span>Drop file to load</span>
+                <div className="absolute inset-0 bg-[#0C1420]/90 backdrop-blur-xs flex items-center justify-center rounded-lg pointer-events-none">
+                  <span className="text-sm font-semibold text-[#E8EEF6] flex items-center gap-2">
+                    <UploadCloud className="w-5 h-5 text-[#22D3EE]" />
+                    <span>Drop file to load configurations</span>
                   </span>
                 </div>
               )}
             </div>
           ) : (
+            /* Online Feeds View */
             <div className="space-y-3">
               {feedNotification && (
-                <div className="p-2.5 bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-500/30 rounded-lg text-xs sm:text-sm font-medium text-teal-800 dark:text-[#2dd4bf] flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-teal-600 dark:text-[#2dd4bf] shrink-0" />
+                <div className="p-2.5 bg-[#34D399]/10 border border-[#34D399]/30 rounded-lg text-xs font-medium text-[#34D399] flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
                   <span>{feedNotification}</span>
                 </div>
               )}
@@ -220,41 +230,49 @@ export const ExtractorPanel: React.FC<ExtractorPanelProps> = ({
                     key={feed.id}
                     onClick={() => onToggleFeed(feed.id)}
                     title={feed.target}
-                    className={`p-3 rounded-lg border transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                    className={`p-3 rounded-lg border transition-all cursor-pointer flex items-center justify-between gap-2.5 ${
                       feed.enabled
-                        ? 'bg-[#f5f3ff] dark:bg-[#1c163d] border-violet-400 dark:border-sky-400/70'
-                        : 'bg-white dark:bg-[#0b081b] border-[#d1c9f4] dark:border-[#34296e] opacity-55'
+                        ? 'bg-[#1B293A] border-[#22D3EE]/40 shadow-xs'
+                        : 'bg-[#0C1420] border-[#263548] opacity-65 hover:opacity-90'
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <input
-                        type="checkbox"
-                        checked={feed.enabled}
-                        onChange={() => {}}
-                        className="rounded border-[#d1c9f4] dark:border-[#34296e] bg-white dark:bg-[#130f2b] text-teal-500 focus:ring-0 shrink-0"
-                      />
-                      <span className="text-xs sm:text-sm font-semibold text-[#130f2b] dark:text-white truncate">
-                        {feed.name}
-                      </span>
+                      <div
+                        className={`w-4 h-4 rounded flex items-center justify-center border transition-colors ${
+                          feed.enabled
+                            ? 'bg-[#22D3EE] border-[#22D3EE] text-[#090E17]'
+                            : 'border-[#263548] bg-[#131D2B]'
+                        }`}
+                      >
+                        {feed.enabled && <span className="text-[10px] font-bold">✓</span>}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold text-[#E8EEF6] truncate">
+                          {feed.name}
+                        </div>
+                        <div className="text-[11px] text-[#64748B] truncate">
+                          {feed.description}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
 
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2">
                 <input
                   type="text"
                   value={customFeedUrl}
                   onChange={(e) => setCustomFeedUrl(e.target.value)}
                   placeholder="https://raw.githubusercontent.com/... or t.me/s/channel"
-                  className="flex-1 bg-[#f5f3ff] dark:bg-[#0b081b] border border-[#d1c9f4] dark:border-[#34296e] rounded-lg px-3 py-2 text-xs sm:text-sm font-mono text-[#130f2b] dark:text-slate-100 placeholder-[#766ea5] focus:outline-none focus:border-sky-400"
+                  className="flex-1 bg-[#0C1420] border border-[#263548] focus:border-[#22D3EE] rounded-lg px-3 py-2 text-xs sm:text-sm font-mono text-[#E8EEF6] placeholder-[#64748B] focus:outline-none"
                 />
                 <button
                   onClick={onFetchOnlineFeeds}
                   disabled={isFetchingFeeds}
-                  className="px-4 py-2 text-xs sm:text-sm font-bold text-[#0b081b] bg-[#2dd4bf] hover:bg-[#14b8a6] disabled:opacity-50 rounded-lg transition-colors whitespace-nowrap flex items-center gap-1.5 shadow-xs"
+                  className="px-4 py-2 text-xs sm:text-sm font-semibold text-[#090E17] bg-[#22D3EE] hover:bg-[#67E8F9] disabled:opacity-50 rounded-lg transition-colors whitespace-nowrap flex items-center gap-1.5 shadow-sm"
                 >
-                  <Radio className="w-4 h-4" />
+                  <Radio className="w-3.5 h-3.5" />
                   <span>{isFetchingFeeds ? 'Fetching...' : 'Fetch Feeds'}</span>
                 </button>
               </div>

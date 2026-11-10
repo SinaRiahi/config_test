@@ -30,36 +30,18 @@ enum StatusFilter {
     FailedOnly,
 }
 
-#[derive(PartialEq, Eq, Clone, Copy)]
-enum ThemePreference {
-    System,
-    Light,
-    Dark,
-}
-
-impl ThemePreference {
-    fn as_str(&self) -> &'static str {
-        match self {
-            ThemePreference::System => "system",
-            ThemePreference::Light => "light",
-            ThemePreference::Dark => "dark",
-        }
-    }
-
-    fn from_str(s: &str) -> Self {
-        match s.to_lowercase().as_str() {
-            "light" => ThemePreference::Light,
-            "dark" => ThemePreference::Dark,
-            _ => ThemePreference::System,
-        }
-    }
-}
-
-/// Color Palette matched directly to the Winged-V & Neon Mint-Aqua Checkmark App Icon:
-/// - Deep Cosmic Indigo-Violet canvas & surfaces (`#0B081B`, `#130F2B`, `#1C163D`)
-/// - Luminous Amethyst & Indigo hairline borders (`#32276B`)
-/// - Electric Ice Cyan-Blue (`#38BDF8`) & Amethyst Violet (`#A855F7`) wing accents
-/// - Neon Mint-Aqua (`#2DD4BF`) checkmark verification accent
+/// Theme: Midnight Signal Color Palette
+/// - Main background: `#090E17`
+/// - Secondary background: `#0F1724`
+/// - Card / panel background: `#131D2B`
+/// - Elevated surfaces: `#1B293A`
+/// - Primary accent (Electric Cyan): `#22D3EE`
+/// - Secondary accent (Soft Cyan): `#67E8F9`
+/// - Success / Verified (Emerald): `#34D399`
+/// - Error / Failed (Rose): `#FB7185`
+/// - Warning / Blocked (Amber): `#FBBF24`
+/// - Typography: `#E8EEF6`, `#94A3B8`, `#64748B`
+/// - Hairline border: `#263548`, Focus border: `#22D3EE`
 struct Palette {
     bg_canvas: Color32,
     bg_card: Color32,
@@ -80,45 +62,24 @@ struct Palette {
 }
 
 impl Palette {
-    fn for_theme(is_dark: bool) -> Self {
-        if is_dark {
-            Self {
-                bg_canvas: Color32::from_rgb(11, 8, 27),     // #0B081B Deep Cosmic Night Indigo
-                bg_card: Color32::from_rgb(19, 15, 43),      // #130F2B Royal Violet-Indigo Card
-                bg_subtle: Color32::from_rgb(28, 22, 61),    // #1C163D Nebula Input Surface
-                bg_row_alt: Color32::from_rgb(23, 18, 51),   // #171233 Alternating Row
-                border: Color32::from_rgb(52, 41, 110),      // #34296E Luminous Indigo Hairline
-                text_primary: Color32::from_rgb(248, 250, 252),
-                text_secondary: Color32::from_rgb(196, 189, 235),
-                text_muted: Color32::from_rgb(138, 130, 184),
-                accent_cyan: Color32::from_rgb(56, 189, 248),   // #38BDF8 Right-Wing Electric Cyan
-                accent_violet: Color32::from_rgb(168, 85, 247), // #A855F7 Left-Wing Amethyst
-                green_fg: Color32::from_rgb(45, 212, 191),      // #2DD4BF Checkmark Neon Mint-Aqua
-                green_bg: Color32::from_rgba_unmultiplied(45, 212, 191, 36),
-                red_fg: Color32::from_rgb(251, 113, 133),       // #FB7185 Coral Crimson
-                red_bg: Color32::from_rgba_unmultiplied(244, 63, 94, 36),
-                amber_fg: Color32::from_rgb(251, 191, 36),      // #FBBF24 Amber
-                amber_bg: Color32::from_rgba_unmultiplied(245, 158, 11, 34),
-            }
-        } else {
-            Self {
-                bg_canvas: Color32::from_rgb(245, 243, 255), // #F5F3FF Soft Iris-Alabaster
-                bg_card: Color32::from_rgb(255, 255, 255),   // #FFFFFF Pure White
-                bg_subtle: Color32::from_rgb(237, 233, 254), // #EDE9FE Soft Lavender Surface
-                bg_row_alt: Color32::from_rgb(248, 247, 255),
-                border: Color32::from_rgb(209, 201, 244),    // #D1C9F4 Iris Border
-                text_primary: Color32::from_rgb(19, 15, 43), // #130F2B Deep Cosmic Ink
-                text_secondary: Color32::from_rgb(76, 68, 122),
-                text_muted: Color32::from_rgb(118, 110, 165),
-                accent_cyan: Color32::from_rgb(2, 132, 199),
-                accent_violet: Color32::from_rgb(124, 58, 237),
-                green_fg: Color32::from_rgb(13, 148, 136),   // #0D9488 Deep Teal-Aqua
-                green_bg: Color32::from_rgba_unmultiplied(13, 148, 136, 28),
-                red_fg: Color32::from_rgb(225, 29, 72),
-                red_bg: Color32::from_rgba_unmultiplied(225, 29, 72, 24),
-                amber_fg: Color32::from_rgb(217, 119, 6),
-                amber_bg: Color32::from_rgba_unmultiplied(217, 119, 6, 26),
-            }
+    fn dark() -> Self {
+        Self {
+            bg_canvas: Color32::from_rgb(9, 14, 23),       // #090E17 Main background
+            bg_card: Color32::from_rgb(19, 29, 43),       // #131D2B Card and panel background
+            bg_subtle: Color32::from_rgb(27, 41, 58),     // #1B293A Elevated surfaces
+            bg_row_alt: Color32::from_rgb(15, 23, 36),    // #0F1724 Secondary background / alt row
+            border: Color32::from_rgb(38, 53, 72),        // #263548 Default border
+            text_primary: Color32::from_rgb(232, 238, 246), // #E8EEF6 Primary text
+            text_secondary: Color32::from_rgb(148, 163, 184), // #94A3B8 Secondary text
+            text_muted: Color32::from_rgb(100, 116, 139),  // #64748B Muted text
+            accent_cyan: Color32::from_rgb(34, 211, 238), // #22D3EE Primary accent (Electric Cyan)
+            accent_violet: Color32::from_rgb(103, 232, 249), // #67E8F9 Secondary accent (Soft Cyan)
+            green_fg: Color32::from_rgb(52, 211, 153),    // #34D399 Success / Verified (Emerald)
+            green_bg: Color32::from_rgba_unmultiplied(52, 211, 153, 28),
+            red_fg: Color32::from_rgb(251, 113, 133),     // #FB7185 Error / Failed (Rose)
+            red_bg: Color32::from_rgba_unmultiplied(251, 113, 133, 28),
+            amber_fg: Color32::from_rgb(251, 191, 36),    // #FBBF24 Warning / Blocked (Amber)
+            amber_bg: Color32::from_rgba_unmultiplied(251, 191, 36, 26),
         }
     }
 }
@@ -133,7 +94,6 @@ pub struct VpnCheckerApp {
     app_icon_tex: TextureHandle,
     input_mode: InputMode,
     input_collapsed: bool,
-    theme_pref: ThemePreference,
     paste_text: String,
     configs: Vec<String>,
     results: Vec<TestResult>,
@@ -203,7 +163,6 @@ impl VpnCheckerApp {
             app_icon_tex,
             input_mode: InputMode::PasteText,
             input_collapsed: false,
-            theme_pref: ThemePreference::from_str(&saved.theme),
             paste_text: String::new(),
             configs: Vec::new(),
             results: Vec::new(),
@@ -235,19 +194,15 @@ impl VpnCheckerApp {
         }
     }
 
-    fn apply_visuals(&self, ctx: &egui::Context, p: &Palette, is_dark: bool) {
-        let mut visuals = if is_dark {
-            egui::Visuals::dark()
-        } else {
-            egui::Visuals::light()
-        };
+    fn apply_visuals(&self, ctx: &egui::Context, p: &Palette) {
+        let mut visuals = egui::Visuals::dark();
         visuals.panel_fill = p.bg_canvas;
         visuals.window_fill = p.bg_card;
         visuals.extreme_bg_color = p.bg_subtle;
         visuals.faint_bg_color = p.bg_row_alt;
         visuals.window_rounding = Rounding::same(10.0);
         visuals.window_stroke = Stroke::new(1.0, p.border);
-        visuals.selection.bg_fill = p.accent_violet.gamma_multiply(0.35);
+        visuals.selection.bg_fill = p.accent_cyan.gamma_multiply(0.20);
         visuals.selection.stroke = Stroke::new(1.0, p.accent_cyan);
         visuals.widgets.noninteractive.bg_fill = p.bg_card;
         visuals.widgets.noninteractive.bg_stroke = Stroke::new(1.0, p.border);
@@ -257,18 +212,18 @@ impl VpnCheckerApp {
         visuals.widgets.inactive.bg_stroke = Stroke::new(1.0, p.border);
         visuals.widgets.inactive.fg_stroke = Stroke::new(1.0, p.text_primary);
         visuals.widgets.inactive.rounding = Rounding::same(7.0);
-        visuals.widgets.hovered.bg_fill = p.accent_violet.gamma_multiply(0.28);
+        visuals.widgets.hovered.bg_fill = p.accent_cyan.gamma_multiply(0.12);
         visuals.widgets.hovered.bg_stroke = Stroke::new(1.0, p.accent_cyan);
         visuals.widgets.hovered.rounding = Rounding::same(7.0);
-        visuals.widgets.active.bg_fill = p.accent_violet.gamma_multiply(0.45);
-        visuals.widgets.active.bg_stroke = Stroke::new(1.0, p.green_fg);
+        visuals.widgets.active.bg_fill = p.accent_cyan.gamma_multiply(0.25);
+        visuals.widgets.active.bg_stroke = Stroke::new(1.0, p.accent_cyan);
         visuals.widgets.active.rounding = Rounding::same(7.0);
         ctx.set_visuals(visuals);
     }
 
     fn persist_config(&mut self) {
         let cfg = AppConfig {
-            theme: self.theme_pref.as_str().to_string(),
+            theme: "dark".to_string(),
             xray_path: self.xray_path.clone(),
             singbox_path: self.singbox_path.clone(),
             v2rayn_path: self.v2rayn_path.clone(),
@@ -323,19 +278,9 @@ fn draw_badge(ui: &mut egui::Ui, text: &str, fg: Color32, bg: Color32) {
 
 impl eframe::App for VpnCheckerApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        match self.theme_pref {
-            ThemePreference::System => ctx.set_theme(egui::ThemePreference::System),
-            ThemePreference::Light => ctx.set_theme(egui::ThemePreference::Light),
-            ThemePreference::Dark => ctx.set_theme(egui::ThemePreference::Dark),
-        }
-
-        let is_dark = match self.theme_pref {
-            ThemePreference::Dark => true,
-            ThemePreference::Light => false,
-            ThemePreference::System => ctx.style().visuals.dark_mode,
-        };
-        let p = Palette::for_theme(is_dark);
-        self.apply_visuals(ctx, &p, is_dark);
+        ctx.set_theme(egui::ThemePreference::Dark);
+        let p = Palette::dark();
+        self.apply_visuals(ctx, &p);
 
         // 1. Poll Test Results Channel
         let mut new_results = Vec::new();
@@ -423,46 +368,9 @@ impl eframe::App for VpnCheckerApp {
                             });
                         });
 
-                    ui.add_space(6.0);
+                    ui.add_space(8.0);
 
-                    // 1. Theme Switcher
-                    ui.label(RichText::new("Appearance Theme").strong().size(15.0));
-                    ui.horizontal(|ui| {
-                        if ui
-                            .selectable_value(
-                                &mut self.theme_pref,
-                                ThemePreference::System,
-                                "🖥 Auto (Match Windows 11)",
-                            )
-                            .clicked()
-                        {
-                            save_needed = true;
-                        }
-                        if ui
-                            .selectable_value(
-                                &mut self.theme_pref,
-                                ThemePreference::Dark,
-                                "🌙 Cosmic Dark",
-                            )
-                            .clicked()
-                        {
-                            save_needed = true;
-                        }
-                        if ui
-                            .selectable_value(
-                                &mut self.theme_pref,
-                                ThemePreference::Light,
-                                "☀ Iris Light",
-                            )
-                            .clicked()
-                        {
-                            save_needed = true;
-                        }
-                    });
-
-                    ui.separator();
-
-                    // 2. Third-Party Core Paths
+                    // Proxy Core Paths
                     ui.label(
                         RichText::new("Proxy Core Executables (xray & sing-box)")
                             .strong()

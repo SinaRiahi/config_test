@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
 export interface ToastMessage {
@@ -18,24 +18,24 @@ export const Toast: React.FC<ToastProps> = ({ toasts, onDismiss }) => {
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          className={`pointer-events-auto flex items-center justify-between gap-3 p-3.5 rounded-xl border shadow-lg backdrop-blur-md transition-all animate-in fade-in slide-in-from-bottom-2 duration-200 ${
+          className={`pointer-events-auto flex items-center justify-between gap-3 p-3.5 rounded-xl border shadow-lg backdrop-blur-md transition-all animate-in fade-in slide-in-from-bottom-2 duration-200 bg-[#131D2B]/95 ${
             toast.type === 'success'
-              ? 'bg-zinc-900/95 dark:bg-[#0c0c0e]/95 border-emerald-500/40 text-emerald-400'
+              ? 'border-[#34D399]/40 text-[#34D399]'
               : toast.type === 'error'
-              ? 'bg-zinc-900/95 dark:bg-[#0c0c0e]/95 border-rose-500/40 text-rose-400'
-              : 'bg-zinc-900/95 dark:bg-[#0c0c0e]/95 border-zinc-700 text-zinc-200'
+              ? 'border-[#FB7185]/40 text-[#FB7185]'
+              : 'border-[#22D3EE]/40 text-[#22D3EE]'
           }`}
         >
           <div className="flex items-center gap-2.5 min-w-0">
-            {toast.type === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
-            {toast.type === 'error' && <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />}
-            {toast.type === 'info' && <Info className="w-4 h-4 text-zinc-300 shrink-0" />}
-            <span className="text-xs font-medium text-white truncate">{toast.message}</span>
+            {toast.type === 'success' && <CheckCircle2 className="w-4 h-4 text-[#34D399] shrink-0" />}
+            {toast.type === 'error' && <AlertCircle className="w-4 h-4 text-[#FB7185] shrink-0" />}
+            {toast.type === 'info' && <Info className="w-4 h-4 text-[#22D3EE] shrink-0" />}
+            <span className="text-xs font-medium text-[#E8EEF6] truncate">{toast.message}</span>
           </div>
 
           <button
             onClick={() => onDismiss(toast.id)}
-            className="p-1 text-zinc-400 hover:text-white rounded transition-colors"
+            className="p-1 text-[#94A3B8] hover:text-[#E8EEF6] rounded transition-colors"
           >
             <X className="w-3.5 h-3.5" />
           </button>

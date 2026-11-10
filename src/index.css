@@ -1,25 +1,63 @@
 @import "tailwindcss";
-@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-signal-bg: #090E17;
+  --color-signal-secondary: #0F1724;
+  --color-signal-panel: #131D2B;
+  --color-signal-elevated: #1B293A;
+  --color-signal-input: #0C1420;
+  --color-signal-hover: #182435;
+
+  --color-signal-cyan: #22D3EE;
+  --color-signal-softcyan: #67E8F9;
+
+  --color-signal-success: #34D399;
+  --color-signal-error: #FB7185;
+  --color-signal-warning: #FBBF24;
+  --color-signal-neutral: #94A3B8;
+
+  --color-signal-text: #E8EEF6;
+  --color-signal-secondary-text: #94A3B8;
+  --color-signal-muted: #64748B;
+
+  --color-signal-border: #263548;
+  --color-signal-focus: #22D3EE;
+}
 
 @layer base {
+  :root {
+    color-scheme: dark;
+    --bg-main: #090E17;
+    --bg-secondary: #0F1724;
+    --bg-panel: #131D2B;
+    --bg-elevated: #1B293A;
+    --bg-input: #0C1420;
+    
+    --accent-primary: #22D3EE;
+    --accent-secondary: #67E8F9;
+
+    --success: #34D399;
+    --error: #FB7185;
+    --warning: #FBBF24;
+    --neutral: #94A3B8;
+
+    --text-primary: #E8EEF6;
+    --text-secondary: #94A3B8;
+    --text-muted: #64748B;
+
+    --border-default: #263548;
+    --border-focus: #22D3EE;
+  }
+
   body {
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-    background-color: #f8f9fa;
-    background-image: radial-gradient(circle at 50% 0%, rgba(0, 0, 0, 0.02) 0%, transparent 60%);
-    background-attachment: fixed;
-    color: #09090b;
-    transition: background-color 0.2s ease, color 0.2s ease;
+    background-color: #090E17;
+    color: #E8EEF6;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    overflow-x: hidden;
   }
 
-  .dark body,
-  body.dark,
-  :root.dark body {
-    background-color: #050507;
-    background-image: radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.03) 0%, transparent 50%);
-    color: #f4f4f5;
-  }
-
-  /* Sleek minimalist scrollbar */
+  /* Midnight Signal sleek dark scrollbar */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -28,17 +66,10 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #d4d4d8;
+    background: #263548;
     border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #a1a1aa;
-  }
-
-  .dark ::-webkit-scrollbar-thumb {
-    background: #27272a;
-  }
-  .dark ::-webkit-scrollbar-thumb:hover {
-    background: #3f3f46;
+    background: #374B64;
   }
 }

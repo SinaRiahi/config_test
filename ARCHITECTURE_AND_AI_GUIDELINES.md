@@ -18,46 +18,70 @@ In addition to manual Telegram text extraction, this version incorporates:
 
 ### 2.1 Rust Application Architecture (`rust-app/`)
 - **`Cargo.toml`**: Size-optimized profile (`opt-level = "z"`, `lto = true`, `codegen-units = 1`, `panic = "abort"`, `strip = true`).
-- **`src/main.rs`**: Application entry point with dual modes (Native `eframe` GUI at 1120×740 and headless Tokio CLI) and embedded 32x32 RGBA taskbar/titlebar icon (`build_app_icon()`).
+- **`src/main.rs`**: Application entry point with dual modes (Native `eframe` GUI at 1120×740 and headless Tokio CLI) and embedded 48x48 RGBA taskbar/titlebar icon (`build_app_icon()` from `/public/assets/aistudio/icon_7a55bfa0.png`).
 - **`src/extractor.rs`**: Protocol regex matching, Base64 subscription block expansion, and streaming JSON deserializer (`serde_json::Deserializer` with byte-offset advancement).
 - **`src/converter.rs`**: Zero-dependency percent-decoder and universal converter translating VMess, VLESS (Reality/TLS/uTLS), Trojan, Hysteria 2, TUIC, Shadowsocks (SIP002 & Legacy Base64), raw JSON outbounds, and SOCKS/HTTP into sing-box or Xray configurations.
 - **`src/fetcher.rs`**: Internet Config Discovery engine that queries public Telegram channel mirrors (`https://t.me/s/<channel>`), GitHub aggregators, and subscription URLs.
 - **`src/tester.rs`**: Non-blocking async 3-Stage Deep Verification engine (`is_redirected_to_regions_doc` + `check_gemini_api_location_gate` + `kill_on_drop(true)`).
 - **`src/downloader.rs`**: Resolves the running `.exe` directory (`std::env::current_exe()`), reads/writes `<exe_dir>/config.json` (`AppConfig`), and downloads/extracts `xray.exe` and `sing-box.exe` into `<exe_dir>/cores/`.
-- **`src/gui.rs`**: High-contrast, DPI-scaled native desktop UI (`eframe`/`egui`) with custom Dark/Light `Palette`, 14.5px–19px typography, 4-card KPI strip, collapsible input/discovery card, status badges (`✓ VERIFIED`, `✕ DOCS REDIRECT`, `✕ GEO BLOCKED`), bottom URI inspector bar, and `⚙ Settings` modal.
+- **`src/gui.rs`**: High-contrast, DPI-scaled native desktop UI (`eframe`/`egui`) with Linear/Raycast Dark `Palette`, 13.5px–19px typography, 4-card KPI strip, code-editor input panel, status badges (`✓ VERIFIED`, `✕ DOCS REDIRECT`, `✕ GEO BLOCKED`), bottom URI inspector drawer, and `⚙ Settings` modal.
 - **`src/cli.rs`**: Headless CLI runner supporting `--fetch-sources`, `--input`, `--concurrency`, and `--filter-supported-only`.
 
 ### 2.2 Modular Frontend Architecture (`src/components/` & `src/utils/`)
-The web companion application is organized into 4 compact views (**Workspace**, **Regions**, **Rust Source**, **CI/CD**) backed by single-responsibility components:
-- `AppIcon.tsx` & `/public/assets/aistudio/icon_7a55bfa0.png`: Uses the custom Winged-V & Neon Mint-Aqua Checkmark icon across the HTML favicon, web header, and embedded 48×48 RGBA texture in the Rust binary (`rust-app/src/main.rs` & `rust-app/src/gui.rs`).
-- `Header.tsx`: 3-zone top bar with `<AppIcon />` wordmark, navigation tabs, `Settings` button, and `.zip` download button.
-- `SettingsModal.tsx`: Centralized Settings modal housing the Theme Switcher (`Auto (Win 11)`, `Dark`, `Light`), Third-Party Core Paths (`xray.exe`, `sing-box.exe`, `v2rayN.exe`) with 1-click GitHub release auto-installer, thread concurrency, timeout, and 3-Stage verification toggles.
-- `MetricCards.tsx`: 4-card KPI strip with icons and tabular numerals.
-- `ExtractorPanel.tsx`: Toolbar with `Paste / File` and `Online Feeds` switcher, drag-and-drop file uploader, Base64/JSON/URI extraction, and collapse toggle.
-- `TestControlBar.tsx`: 3-Stage verification pipeline bar with quick settings badge (`threads · timeout`), gradient progress bar, and instant Stop cancellation.
-- `ConfigTable.tsx`: High-readability sortable data grid with status, region, ping, server, protocol/endpoint, and diagnostic columns.
-- `RegionMatrixPanel.tsx`: Google AI Studio regional support grid.
-- `RustSourceViewer.tsx` & `src/utils/rustFiles.ts`: Directly imports all `/rust-app/` files via Vite `?raw` imports so the code explorer and `.zip` bundler always serve the exact, compilable Rust source code and `icon.png`.
+The web companion application is organized into 4 views (**Workspace**, **Regions**, **Rust Source**, **CI/CD**) backed by single-responsibility components:
+- `AppIcon.tsx` & `/public/assets/aistudio/icon_7a55bfa0.png`: Uses the custom Winged-V & Neon Mint-Aqua Checkmark icon across the HTML favicon, web header, and embedded 48×48 RGBA texture in the Rust binary.
+- `Header.tsx`: Slim, elegant top navigation bar with `<AppIcon />` + "VPN Config Checker" + "AI Studio Deep Verifier", center segmented control (`Paste / Load Configs` vs `Online Feeds`), and right-side CTA (`Verify Queue ({count})`) and `Settings` button.
+- `SettingsModal.tsx`: Pure dark settings modal stripped of light/theme toggles, housing proxy core paths (`xray.exe`, `sing-box.exe`, `v2rayN.exe`), 1-click GitHub core auto-installer, concurrency slider, timeouts, 3-stage validation toggles, and `config.json` export.
+- `MetricCards.tsx`: 4 statistics cards (Configs in Queue, AI Studio Verified, Docs / Region Blocked, Failed / Unreachable) with large numbers as visual focal anchors and restrained semantic colors.
+- `ExtractorPanel.tsx`: Code editor terminal aesthetic (`#0E111B` recessed background, monospace typography) with actions (`Extract Configs`, `Paste & Extract`, `Load File`, `Sample`, `Clear`).
+- `TestControlBar.tsx`: Compact progress section with 3-stage indicators, smooth progress bar, percentage, and completion state.
+- `ConfigTable.tsx`: Filter toolbar (`All`, `Verified`, `Blocked`, `Failed`, protocol selector) and sticky-header results table with status badges (`#10B981`, `#F59E0B`, `#F43F5E`), intelligent latency coloring, prominent server names, diagnostic details, and row selection.
+- `App.tsx` (Selected Configuration Details Drawer): Bottom expandable drawer displaying selected config ID, name, region, verification status, "Copy Full URI" button, close button, and horizontal-scrolling monospace URI field.
+- `RegionMatrixPanel.tsx`: Google AI Studio regional support grid with dark surface styling.
+- `RustSourceViewer.tsx` & `src/utils/rustFiles.ts`: Directly imports all `/rust-app/` files via Vite `?raw` imports so the code explorer and `.zip` bundler always serve the exact, compilable Rust source code.
 - `GitHubWorkflowGuide.tsx`: 3-step CI/CD workflow viewer.
 - `ConfigInspectorModal.tsx`: Modal displaying parsed host/core/region metadata and JSON/URI copy blocks.
 - `Toast.tsx`: Micro-toasts confirming user actions.
 
-### 2.4 Supported AI Studio Regions
-Google AI Studio is officially supported in over 180 countries and territories (e.g. US, UK, DE, FR, JP, SG, NL, CA, AU, BR, IN, KR, TW, etc.). Territories blocked by Google include CN, HK, MO, IR, RU, BY, CU, KP, SY. Configs exiting in blocked territories, redirecting to `ai.google.dev/gemini-api/docs/available-regions`, or triggering `"User location is not supported"` on the Gemini API gate are marked as `RegionBlocked`.
+### 2.3 Supported AI Studio Regions
+Google AI Studio is officially supported in over 180 countries and territories (e.g. US, UK, DE, FR, JP, SG, NL, CA, AU, BR, IN, KR, TW, etc.). Blocked territories include CN, HK, MO, IR, RU, BY, CU, KP, SY. Configs exiting in blocked territories, redirecting to `ai.google.dev/gemini-api/docs/available-regions`, or triggering `"User location is not supported"` on the Gemini API gate are marked as `RegionBlocked`.
 
 ---
 
-## 3. UI & Design Principles (Icon-Matched Cosmic Indigo & Neon Mint-Aqua Palette)
-- **Cosmic Indigo-Violet Foundation (Matched to `/public/assets/aistudio/icon_7a55bfa0.png`)**:
-  - **Dark Mode**: Deep Cosmic Night Indigo canvas (`#0b081b`), Royal Violet-Indigo card surfaces (`#130f2b`), Nebula input surfaces (`#1c163d`), and luminous Indigo-Amethyst hairline borders (`#34296e`).
-  - **Light Mode**: Soft Iris-Alabaster canvas (`#f5f3ff`), crisp pure white card surfaces (`#ffffff`), soft lavender interactive surfaces (`#ede9fe`), and iris borders (`#d1c9f4`).
-- **Semantic & Brand Accents from the Winged-V Icon**:
-  - **Neon Mint-Aqua (`#2dd4bf` / `#0d9488`)**: Matches the glowing 3D checkmark in the icon; used for Verified AI Studio pass states and primary verification CTAs.
-  - **Electric Wing Cyan (`#38bdf8`) & Amethyst Violet (`#a855f7`)**: Matches the glowing circuit wings of the "V" emblem; used for active selections, region codes, and progress bars.
-  - **Amber (`#fbbf24` / `#d97706`)**: API warnings and high latency.
-  - **Coral Crimson (`#fb7185` / `#e11d48`)**: Docs redirect blocks, unsupported GeoIP territories, and connection failures.
-- **Dual-Theme Engine (Light, Dark, and Auto Windows 11 Match)**:
-  - Supports `Light`, `Dark`, and `Auto (Windows 11)` across both the native Rust `egui` app (`<exe_dir>/config.json`) and Web Companion (`localStorage`).
-- **Tabular Figures**: Tabular numerals (`font-mono tabular-nums`) for all latency, IP, and port figures.
+## 3. UI & Design Principles (Midnight Signal Color System)
 
+The visual design follows the **Midnight Signal** aesthetic — an elegant, technical color system inspired by premium network diagnostics and infrastructure monitoring dashboards:
 
+- **Strict Dark Mode ONLY**:
+  - All light mode styling, theme toggles, and light-theme CSS/logic have been completely eliminated. Both the Web Companion and native Rust desktop app run exclusively in dark mode.
+- **Centralized Design Tokens (`src/theme.ts` & `@theme` in `src/index.css`)**:
+  - **Core Backgrounds**:
+    - Main background: `#090E17`
+    - Secondary background: `#0F1724`
+    - Card and panel background: `#131D2B`
+    - Elevated surfaces: `#1B293A`
+    - Input background: `#0C1420`
+  - **Accents**:
+    - Primary accent: `#22D3EE` (Electric Cyan)
+    - Secondary accent: `#67E8F9` (Soft Cyan)
+  - **Semantic Colors**:
+    - Success / Verified: `#34D399` (Emerald)
+    - Error / Failed: `#FB7185` (Rose)
+    - Warning / Blocked: `#FBBF24` (Amber)
+    - Pending / Neutral: `#94A3B8`
+  - **Typography**:
+    - Primary text: `#E8EEF6`
+    - Secondary text: `#94A3B8`
+    - Muted text: `#64748B`
+  - **Borders**:
+    - Default border: `#263548`
+    - Focus border: `#22D3EE`
+- **Color Usage Rules**:
+  - Electric Cyan (`#22D3EE`) is the primary interactive accent for primary buttons (with `#090E17` dark text), active indicators, focus borders, and progress indicators.
+  - Emerald (`#34D399`) is reserved exclusively for successful verification states.
+  - Rose (`#FB7185`) marks dead proxies, unreachable servers, and handshake timeouts.
+  - Amber (`#FBBF24`) indicates regional restrictions and docs redirects.
+  - Selected table rows have a subtle cyan-tinted highlight (`#1B293A` with `#22D3EE` left border).
+- **Tabular Figures & Monospace**:
+  - Tabular numerals (`font-mono tabular-nums`) for all latency, IP, port, and counter figures.
+  - Monospace code styling for raw URIs and outbound JSON blocks.

@@ -38,7 +38,7 @@ export const RUST_FILES: RustSourceFile[] = [
   {
     path: 'rust-app/src/gui.rs',
     filename: 'gui.rs',
-    description: 'Ultra-lightweight native immediate-mode GUI with eframe (System/Light/Dark themes, async channels)',
+    description: 'Ultra-lightweight native immediate-mode GUI with eframe (Midnight Signal dark theme, async channels)',
     code: guiRsRaw,
   },
   {

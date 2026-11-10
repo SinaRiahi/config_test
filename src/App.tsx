@@ -9,33 +9,38 @@ import {
 import { ParsedConfig, DiscoveryFeed, AiStudioVerificationStatus } from './types';
 import { RUST_FILES, GITHUB_WORKFLOW_YML, downloadRustProjectZip } from './utils/rustFiles';
 
-// Modular Components
-import { Header, ActiveTab, ThemeMode } from './components/Header';
+// Components
+import { Header, ActiveTab, InputSubMode } from './components/Header';
 import { MetricCards } from './components/MetricCards';
 import { ExtractorPanel } from './components/ExtractorPanel';
 import { TestControlBar } from './components/TestControlBar';
-import { ConfigTable } from './components/ConfigTable';
+import { ConfigTable, StatusFilterOption } from './components/ConfigTable';
 import { RegionMatrixPanel } from './components/RegionMatrixPanel';
 import { RustSourceViewer } from './components/RustSourceViewer';
 import { GitHubWorkflowGuide } from './components/GitHubWorkflowGuide';
 import { ConfigInspectorModal } from './components/ConfigInspectorModal';
 import { SettingsModal, AppSettings, DEFAULT_APP_SETTINGS } from './components/SettingsModal';
 import { Toast, ToastMessage } from './components/Toast';
+import { Copy, X, Check, ShieldCheck, AlertTriangle, XCircle } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('workspace');
+  const [inputSubMode, setInputSubMode] = useState<InputSubMode>('paste');
   const [inputText, setInputText] = useState(SAMPLE_TELEGRAM_MESSAGES);
   const [rawConfigs, setRawConfigs] = useState<string[]>(() =>
     extractRawConfigs(SAMPLE_TELEGRAM_MESSAGES)
   );
   const [selectedConfig, setSelectedConfig] = useState<ParsedConfig | null>(null);
+  const [inspectModalConfig, setInspectModalConfig] = useState<ParsedConfig | null>(null);
   const [selectedRustFile, setSelectedRustFile] = useState(RUST_FILES[0].filename);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [searchFilter, setSearchFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilterOption>('all');
   const [protocolFilter, setProtocolFilter] = useState<string>('all');
-  const [regionFilter, setRegionFilter] = useState<string>('all');
   const [isTesting, setIsTesting] = useState(false);
   const [testProgress, setTestProgress] = useState(0);
+  const [testedCount, setTestedCount] = useState(0);
+  const [statusMessage, setStatusMessage] = useState<string>('Ready');
   const [testResults, setTestResults] = useState<
     Record<
       string,
@@ -52,11 +57,16 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
-  // Persistent App Settings (Xray, sing-box, v2rayN, Concurrency, Timeout, 3-Pillar Checks)
+  // Enforce strict dark mode permanently on root HTML
+  useEffect(() => {
+    document.documentElement.classList.add('dark');
+  }, []);
+
+  // Persistent App Settings
   const [settings, setSettings] = useState<AppSettings>(() => {
     if (typeof window !== 'undefined') {
       try {
-        const saved = localStorage.getItem('vpn_checker_settings_v1');
+        const saved = localStorage.getItem('vpn_checker_settings_v2');
         if (saved) {
           return { ...DEFAULT_APP_SETTINGS, ...JSON.parse(saved) };
         }
@@ -69,13 +79,13 @@ export default function App() {
 
   useEffect(() => {
     try {
-      localStorage.setItem('vpn_checker_settings_v1', JSON.stringify(settings));
+      localStorage.setItem('vpn_checker_settings_v2', JSON.stringify(settings));
     } catch {
-      // ignore storage quota errors
+      // ignore
     }
   }, [settings]);
 
-  // Ref to track and cancel active test timers cleanly on Stop / Clear / Unmount
+  // Ref to cancel active test timers cleanly
   const testTimersRef = useRef<number[]>([]);
 
   const clearActiveTestTimers = () => {
@@ -88,47 +98,6 @@ export default function App() {
   useEffect(() => {
     return () => clearActiveTestTimers();
   }, []);
-
-  // Theme Management (Light, Dark, and Auto Windows 11 matching)
-  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
-    if (typeof window !== 'undefined') {
-      return (localStorage.getItem('vpn_theme_preference') as ThemeMode) || 'auto';
-    }
-    return 'auto';
-  });
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-
-    const updateTheme = () => {
-      let isDark = true;
-      if (themeMode === 'dark') {
-        isDark = true;
-      } else if (themeMode === 'light') {
-        isDark = false;
-      } else {
-        isDark = mediaQuery.matches;
-      }
-
-      if (isDark) {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
-    };
-
-    updateTheme();
-    localStorage.setItem('vpn_theme_preference', themeMode);
-
-    const onSystemThemeChange = () => {
-      if (themeMode === 'auto') {
-        updateTheme();
-      }
-    };
-
-    mediaQuery.addEventListener('change', onSystemThemeChange);
-    return () => mediaQuery.removeEventListener('change', onSystemThemeChange);
-  }, [themeMode]);
 
   // Toast Helper
   const addToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -156,15 +125,6 @@ export default function App() {
       .filter((c): c is ParsedConfig => c !== null);
   }, [rawConfigs]);
 
-  // Protocol distribution stats
-  const protocolStats = useMemo(() => {
-    const counts: Record<string, number> = {};
-    parsedConfigs.forEach((c) => {
-      counts[c.protocol] = (counts[c.protocol] || 0) + 1;
-    });
-    return counts;
-  }, [parsedConfigs]);
-
   // Working & blocked counters
   const workingCount = useMemo(() => {
     return Object.values(testResults).filter((r) => r.status === 'working').length;
@@ -174,8 +134,10 @@ export default function App() {
     return Object.values(testResults).filter((r) => r.status === 'region_blocked').length;
   }, [testResults]);
 
-  const apiBlockedCount = useMemo(() => {
-    return Object.values(testResults).filter((r) => r.status === 'api_blocked').length;
+  const failedCount = useMemo(() => {
+    return Object.values(testResults).filter(
+      (r) => r.status === 'failed' || r.status === 'api_blocked'
+    ).length;
   }, [testResults]);
 
   // Filtered configs for table
@@ -188,30 +150,23 @@ export default function App() {
         cfg.name.toLowerCase().includes(searchFilter.toLowerCase()) ||
         cfg.server.toLowerCase().includes(searchFilter.toLowerCase()) ||
         cfg.protocol.toLowerCase().includes(searchFilter.toLowerCase()) ||
-        (cfg.sni && cfg.sni.toLowerCase().includes(searchFilter.toLowerCase()));
+        country.toLowerCase().includes(searchFilter.toLowerCase()) ||
+        (result?.detail && result.detail.toLowerCase().includes(searchFilter.toLowerCase()));
 
       const matchesProtocol = protocolFilter === 'all' || cfg.protocol === protocolFilter;
 
-      let matchesRegion = true;
-      if (regionFilter === 'verified_only') {
-        matchesRegion = result?.status === 'working';
-      } else if (regionFilter === 'us') {
-        matchesRegion = country === 'US';
-      } else if (regionFilter === 'europe') {
-        matchesRegion = ['DE', 'GB', 'NL', 'FR', 'CH', 'SE', 'PL'].includes(country);
-      } else if (regionFilter === 'asia') {
-        matchesRegion = ['JP', 'SG', 'KR', 'TW', 'IN'].includes(country);
-      } else if (regionFilter === 'blocked') {
-        matchesRegion =
-          result?.status === 'region_blocked' ||
-          country === 'IR' ||
-          country === 'CN' ||
-          country === 'RU';
+      let matchesStatus = true;
+      if (statusFilter === 'verified') {
+        matchesStatus = result?.status === 'working';
+      } else if (statusFilter === 'blocked') {
+        matchesStatus = result?.status === 'region_blocked';
+      } else if (statusFilter === 'failed') {
+        matchesStatus = result?.status === 'failed' || result?.status === 'api_blocked';
       }
 
-      return matchesSearch && matchesProtocol && matchesRegion;
+      return matchesSearch && matchesProtocol && matchesStatus;
     });
-  }, [parsedConfigs, searchFilter, protocolFilter, regionFilter, testResults]);
+  }, [parsedConfigs, searchFilter, protocolFilter, statusFilter, testResults]);
 
   const handleExtract = () => {
     clearActiveTestTimers();
@@ -220,6 +175,9 @@ export default function App() {
     setRawConfigs(extracted);
     setTestResults({});
     setTestProgress(0);
+    setTestedCount(0);
+    setSelectedConfig(null);
+    setStatusMessage(`Extracted ${extracted.length} configurations`);
     addToast(`Extracted ${extracted.length} configs`, 'success');
   };
 
@@ -230,7 +188,29 @@ export default function App() {
     setRawConfigs([]);
     setTestResults({});
     setTestProgress(0);
+    setTestedCount(0);
+    setSelectedConfig(null);
+    setStatusMessage('Queue cleared');
     addToast('Cleared', 'info');
+  };
+
+  const handlePasteAndExtract = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        setInputText(text);
+        const extracted = extractRawConfigs(text);
+        setRawConfigs(extracted);
+        setTestResults({});
+        setTestProgress(0);
+        setTestedCount(0);
+        setSelectedConfig(null);
+        setStatusMessage(`Pasted & extracted ${extracted.length} configs`);
+        addToast(`Extracted ${extracted.length} configs from clipboard`, 'success');
+      }
+    } catch {
+      handleExtract();
+    }
   };
 
   const copyText = (text: string, id: string, label: string = 'Copied') => {
@@ -254,10 +234,10 @@ export default function App() {
   const handleFetchOnlineFeeds = async () => {
     if (isFetchingFeeds) return;
     setIsFetchingFeeds(true);
-    setFeedNotification('Fetching...');
+    setFeedNotification('Fetching public Telegram & GitHub aggregators...');
 
     const enabledFeeds = discoveryFeeds.filter((f) => f.enabled);
-    let newFetchedConfigs: string[] = [];
+    const newFetchedConfigs: string[] = [];
 
     for (const feed of enabledFeeds) {
       const fallbackList = DISCOVERY_MOCK_CONFIGS[feed.target] || [];
@@ -276,7 +256,7 @@ export default function App() {
             }
           }
         } catch {
-          // Fallback to curated list below
+          // Fallback below
         }
       }
       newFetchedConfigs.push(...fallbackList);
@@ -296,7 +276,7 @@ export default function App() {
             customExtracted = extractRawConfigs(text).slice(0, 20);
           }
         } catch {
-          // Fallback below
+          // Fallback
         }
       } else if (trimmedCustom.includes('://')) {
         customExtracted = extractRawConfigs(trimmedCustom);
@@ -304,10 +284,6 @@ export default function App() {
 
       if (customExtracted.length > 0) {
         newFetchedConfigs.push(...customExtracted);
-      } else {
-        newFetchedConfigs.push(
-          `vless://custom-uuid-999@104.28.19.44:443?security=reality&sni=cloudflare-ech.com#Custom-Source-Node`
-        );
       }
     }
 
@@ -315,7 +291,8 @@ export default function App() {
     const addedCount = combined.length - rawConfigs.length;
     setRawConfigs(combined);
     setIsFetchingFeeds(false);
-    setFeedNotification(`+${addedCount} configs added (${combined.length} total)`);
+    setFeedNotification(`Fetched +${addedCount} unique configs (${combined.length} total)`);
+    setStatusMessage(`Fetched +${addedCount} configs from online feeds`);
     addToast(`Added ${addedCount} online configs`, 'success');
     window.setTimeout(() => setFeedNotification(null), 3500);
   };
@@ -326,20 +303,22 @@ export default function App() {
     );
   };
 
-  // AI Studio 3-Pillar Automated Verification
+  // AI Studio 3-Stage Verification Engine
   const handleStartSimulatedTest = () => {
     if (parsedConfigs.length === 0 || isTesting) return;
     clearActiveTestTimers();
     setIsTesting(true);
     setTestProgress(0);
+    setTestedCount(0);
     setTestResults({});
+    setStatusMessage('Running 3-Stage Deep Regional Verification...');
 
     let completed = 0;
     const total = parsedConfigs.length;
-    const batchStepMs = Math.max(30, Math.round(400 / Math.max(1, settings.concurrency)));
+    const batchStepMs = Math.max(30, Math.round(350 / Math.max(1, settings.concurrency)));
 
     parsedConfigs.forEach((cfg, idx) => {
-      const delay = Math.floor(Math.random() * 380) + 85;
+      const delay = Math.floor(Math.random() * 320) + 75;
       const lower = `${cfg.name} ${cfg.server}`.toLowerCase();
 
       const isExplicitlyBlockedRegion =
@@ -352,8 +331,10 @@ export default function App() {
           lower.includes('.ru') ||
           lower.includes('hk') ||
           lower.includes('hong kong'));
+
       const isDocsRedirectBlocked =
         settings.checkAiStudioWeb && !isExplicitlyBlockedRegion && idx % 7 === 4;
+
       const isGeminiLocationBlocked =
         settings.checkGeminiApi &&
         !isExplicitlyBlockedRegion &&
@@ -381,17 +362,19 @@ export default function App() {
             status,
             delay: status === 'working' ? delay : 0,
             countryCode: cfg.countryCode || 'US',
-            countryFlag: cfg.countryFlag || '🇺🇸',
+            countryFlag: cfg.countryFlag || '🌐',
             detail,
           },
         }));
 
         completed += 1;
+        setTestedCount(completed);
         setTestProgress(Math.round((completed / total) * 100));
 
         if (completed >= total) {
           setIsTesting(false);
           testTimersRef.current = [];
+          setStatusMessage('Verification complete');
           addToast('Verification complete', 'success');
         }
       }, (idx + 1) * batchStepMs);
@@ -403,6 +386,7 @@ export default function App() {
   const handleStopTests = () => {
     clearActiveTestTimers();
     setIsTesting(false);
+    setStatusMessage('Verification paused');
     addToast('Stopped', 'info');
   };
 
@@ -414,7 +398,7 @@ export default function App() {
       copyText(
         workingConfigs.join('\n'),
         'copy-working-btn',
-        `Copied ${workingConfigs.length} configs`
+        `Copied ${workingConfigs.length} verified configs`
       );
     }
   };
@@ -429,46 +413,59 @@ export default function App() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'aistudio_working_configs.txt';
+    a.download = 'aistudio_verified_configs.txt';
     a.click();
     URL.revokeObjectURL(url);
-    addToast('Exported .txt', 'success');
+    addToast('Exported aistudio_verified_configs.txt', 'success');
   };
 
   const activeRustSource = useMemo(() => {
     return RUST_FILES.find((f) => f.filename === selectedRustFile) || RUST_FILES[0];
   }, [selectedRustFile]);
 
+  // Selected config details helper
+  const selectedResult = selectedConfig ? testResults[selectedConfig.id] : null;
+
   return (
-    <div className="min-h-screen bg-[#f5f3ff] dark:bg-[#0b081b] text-[#130f2b] dark:text-slate-100 flex flex-col font-['Plus_Jakarta_Sans',sans-serif] transition-colors duration-200">
+    <div className="min-h-screen bg-[#090E17] text-[#E8EEF6] flex flex-col font-['Plus_Jakarta_Sans',sans-serif]">
       {/* Toast Notifications */}
       <Toast toasts={toasts} onDismiss={dismissToast} />
 
-      {/* Compact Top Bar */}
+      {/* Modern Top Navigation Bar */}
       <Header
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        inputMode={inputSubMode}
+        setInputMode={setInputSubMode}
         configCount={parsedConfigs.length}
+        isTesting={isTesting}
+        testProgress={testProgress}
+        onRunTests={handleStartSimulatedTest}
+        onStopTests={handleStopTests}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onDownloadZip={handleDownloadZip}
         isExportingZip={isExportingZip}
       />
 
-      {/* Main Compact Viewport */}
+      {/* Main Workspace Layout */}
       <main className="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 py-4 space-y-3.5">
-        {/* Compact KPI Strip */}
-        <MetricCards
-          totalCount={parsedConfigs.length}
-          workingCount={workingCount}
-          regionBlockedCount={regionBlockedCount}
-          apiBlockedCount={apiBlockedCount}
-          onOpenSettings={() => setIsSettingsOpen(true)}
-        />
-
-        {/* View 1: Unified Checker Workspace */}
+        {/* Workspace Tab */}
         {activeTab === 'workspace' && (
           <div className="space-y-3.5">
+            {/* 4. Statistics Dashboard */}
+            <MetricCards
+              totalCount={parsedConfigs.length}
+              workingCount={workingCount}
+              regionBlockedCount={regionBlockedCount}
+              failedCount={failedCount}
+              concurrency={settings.concurrency}
+              timeoutSec={settings.timeoutSec}
+            />
+
+            {/* 5. Configuration Input Panel */}
             <ExtractorPanel
+              sourceMode={inputSubMode}
+              setSourceMode={setInputSubMode}
               inputText={inputText}
               setInputText={setInputText}
               rawConfigCount={rawConfigs.length}
@@ -480,10 +477,13 @@ export default function App() {
                 setRawConfigs(extracted);
                 setTestResults({});
                 setTestProgress(0);
-                addToast('Sample loaded', 'info');
+                setTestedCount(0);
+                setSelectedConfig(null);
+                addToast('Loaded sample configurations', 'info');
               }}
+              onPasteAndExtract={handlePasteAndExtract}
               onFileLoaded={(filename, count) => {
-                addToast(`${filename} (${count} lines)`, 'info');
+                addToast(`Loaded ${filename} (${count} lines)`, 'info');
               }}
               discoveryFeeds={discoveryFeeds}
               onToggleFeed={handleToggleFeed}
@@ -494,34 +494,116 @@ export default function App() {
               feedNotification={feedNotification}
             />
 
+            {/* 6. Verification Progress Section */}
             <TestControlBar
               settings={settings}
               isTesting={isTesting}
               testProgress={testProgress}
+              testedCount={testedCount}
               totalConfigs={parsedConfigs.length}
-              onRunTests={handleStartSimulatedTest}
-              onStopTests={handleStopTests}
-              onOpenSettings={() => setIsSettingsOpen(true)}
+              statusMessage={statusMessage}
             />
 
+            {/* 7 & 8. Filters Toolbar & Results Table */}
             <ConfigTable
               configs={filteredConfigs}
               totalUnfilteredCount={parsedConfigs.length}
               testResults={testResults}
+              selectedConfigId={selectedConfig?.id || null}
+              onSelectConfig={(cfg) => setSelectedConfig(cfg)}
               searchFilter={searchFilter}
               setSearchFilter={setSearchFilter}
+              statusFilter={statusFilter}
+              setStatusFilter={setStatusFilter}
               protocolFilter={protocolFilter}
               setProtocolFilter={setProtocolFilter}
-              regionFilter={regionFilter}
-              setRegionFilter={setRegionFilter}
-              protocolStats={protocolStats}
               workingCount={workingCount}
-              onInspect={(cfg) => setSelectedConfig(cfg)}
-              onCopyUri={(uri, id) => copyText(uri, id, 'Copied URI')}
+              regionBlockedCount={regionBlockedCount}
+              failedCount={failedCount}
+              onInspect={(cfg) => setInspectModalConfig(cfg)}
+              onCopyUri={(uri, id) => copyText(uri, id, 'Copied proxy URI')}
               copiedId={copiedId}
               onCopyWorking={handleCopyWorking}
               onExportWorkingTxt={handleExportWorkingTxt}
             />
+
+            {/* 9. Selected Configuration Details Panel */}
+            {selectedConfig && (
+              <div className="bg-[#131D2B] border border-[#263548] rounded-xl p-4 space-y-2.5 shadow-lg transition-all animate-in fade-in slide-in-from-bottom-2 duration-200">
+                <div className="flex flex-wrap items-center justify-between gap-3 pb-2.5 border-b border-[#263548]">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="font-mono font-bold text-xs text-[#22D3EE]">
+                      #{selectedConfig.index}
+                    </span>
+                    <span className="text-sm font-semibold text-[#E8EEF6]">
+                      {selectedConfig.name}
+                    </span>
+                    <span className="text-xs font-mono text-[#94A3B8]">
+                      [{selectedConfig.countryFlag || '🌐'} {selectedConfig.countryCode || 'US'}]
+                    </span>
+
+                    {/* Status badge */}
+                    {selectedResult && (
+                      selectedResult.status === 'working' ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium text-[#34D399] bg-[#34D399]/15 border border-[#34D399]/30">
+                          <ShieldCheck className="w-3.5 h-3.5" />
+                          <span>Verified</span>
+                        </span>
+                      ) : selectedResult.status === 'region_blocked' ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium text-[#FBBF24] bg-[#FBBF24]/15 border border-[#FBBF24]/30">
+                          <AlertTriangle className="w-3.5 h-3.5" />
+                          <span>Docs / Region Blocked</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium text-[#FB7185] bg-[#FB7185]/15 border border-[#FB7185]/30">
+                          <XCircle className="w-3.5 h-3.5" />
+                          <span>Failed</span>
+                        </span>
+                      )
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() =>
+                        copyText(selectedConfig.raw, 'bottom-inspect-copy', 'Copied full URI')
+                      }
+                      className="px-3 py-1.5 text-xs font-semibold text-[#090E17] bg-[#22D3EE] hover:bg-[#67E8F9] active:bg-[#06B6D4] rounded-lg transition-colors flex items-center gap-1.5 shadow-sm"
+                    >
+                      {copiedId === 'bottom-inspect-copy' ? (
+                        <Check className="w-3.5 h-3.5" />
+                      ) : (
+                        <Copy className="w-3.5 h-3.5" />
+                      )}
+                      <span>Copy Full URI</span>
+                    </button>
+
+                    <button
+                      onClick={() => setSelectedConfig(null)}
+                      title="Close panel"
+                      className="p-1.5 text-[#94A3B8] hover:text-[#E8EEF6] hover:bg-[#1B293A] rounded-lg transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Diagnostic message if available */}
+                {selectedResult?.detail && (
+                  <div className="text-xs text-[#94A3B8]">
+                    <span className="font-semibold text-[#64748B]">Diagnostic:</span>{' '}
+                    <span>{selectedResult.detail}</span>
+                  </div>
+                )}
+
+                {/* Dedicated Monospace URI Field with horizontal scrolling */}
+                <div className="relative">
+                  <pre className="p-3 bg-[#0C1420] border border-[#263548] rounded-lg text-xs font-mono text-[#E8EEF6] overflow-x-auto whitespace-pre selection:bg-[#22D3EE]/25">
+                    {selectedConfig.raw}
+                  </pre>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -534,7 +616,7 @@ export default function App() {
             selectedRustFile={selectedRustFile}
             setSelectedRustFile={setSelectedRustFile}
             activeRustSource={activeRustSource}
-            onCopyFile={(code) => copyText(code, 'rust-code', 'Copied code')}
+            onCopyFile={(code) => copyText(code, 'rust-code', 'Copied Rust code')}
             isCopied={copiedId === 'rust-code'}
             onDownloadZip={handleDownloadZip}
             isExportingZip={isExportingZip}
@@ -545,29 +627,27 @@ export default function App() {
         {activeTab === 'workflow' && (
           <GitHubWorkflowGuide
             onCopyWorkflow={() =>
-              copyText(GITHUB_WORKFLOW_YML, 'workflow-yml', 'Copied YAML')
+              copyText(GITHUB_WORKFLOW_YML, 'workflow-yml', 'Copied workflow YAML')
             }
             isCopied={copiedId === 'workflow-yml'}
           />
         )}
       </main>
 
-      {/* Settings Modal (Theme Switch + Xray / sing-box / v2rayN Paths + Verification Options) */}
+      {/* Settings Modal (Theme switch removed, dark mode only) */}
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
-        themeMode={themeMode}
-        setThemeMode={setThemeMode}
         settings={settings}
         setSettings={setSettings}
         onNotify={addToast}
       />
 
-      {/* Inspector Modal */}
-      {selectedConfig && (
+      {/* JSON Outbound Inspector Modal */}
+      {inspectModalConfig && (
         <ConfigInspectorModal
-          config={selectedConfig}
-          onClose={() => setSelectedConfig(null)}
+          config={inspectModalConfig}
+          onClose={() => setInspectModalConfig(null)}
           onCopyText={(text, id) => copyText(text, id, 'Copied')}
           copiedId={copiedId}
         />

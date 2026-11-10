@@ -1,14 +1,21 @@
 import React from 'react';
-import { Download, Settings, Activity, Globe2, Code2, Github } from 'lucide-react';
+import { Settings, Play, Square, Download, FileText, Globe, Code2, Github, MapPin } from 'lucide-react';
 import { AppIcon } from './AppIcon';
+import { THEME } from '../theme';
 
 export type ActiveTab = 'workspace' | 'regions' | 'rust-code' | 'workflow';
-export type ThemeMode = 'auto' | 'light' | 'dark';
+export type InputSubMode = 'paste' | 'discover';
 
 interface HeaderProps {
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
+  inputMode: InputSubMode;
+  setInputMode: (mode: InputSubMode) => void;
   configCount: number;
+  isTesting: boolean;
+  testProgress: number;
+  onRunTests: () => void;
+  onStopTests: () => void;
   onOpenSettings: () => void;
   onDownloadZip: () => void;
   isExportingZip: boolean;
@@ -17,66 +24,156 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   activeTab,
   setActiveTab,
+  inputMode,
+  setInputMode,
   configCount,
+  isTesting,
+  testProgress,
+  onRunTests,
+  onStopTests,
   onOpenSettings,
   onDownloadZip,
   isExportingZip,
 }) => {
-  const navItems: { id: ActiveTab; label: string; icon: React.ReactNode }[] = [
-    { id: 'workspace', label: `Workspace (${configCount})`, icon: <Activity className="w-3.5 h-3.5" /> },
-    { id: 'regions', label: 'Regions', icon: <Globe2 className="w-3.5 h-3.5" /> },
-    { id: 'rust-code', label: 'Rust Source', icon: <Code2 className="w-3.5 h-3.5" /> },
-    { id: 'workflow', label: 'CI/CD', icon: <Github className="w-3.5 h-3.5" /> },
-  ];
-
   return (
-    <header className="border-b border-[#d1c9f4] dark:border-[#34296e] bg-white/95 dark:bg-[#130f2b]/95 backdrop-blur-md px-4 sm:px-6 py-3 sticky top-0 z-40">
-      <div className="max-w-[1440px] mx-auto flex items-center justify-between gap-4 sm:gap-8">
-        {/* Zone 1: Uploaded Winged-V App Icon + Brand Wordmark */}
+    <header className="sticky top-0 z-40 w-full border-b border-[#263548] bg-[#0F1724]/95 backdrop-blur-md px-4 sm:px-6 py-2.5 transition-colors">
+      <div className="max-w-[1440px] mx-auto flex items-center justify-between gap-4">
+        {/* Left Side: Application Icon + Title + Secondary Label */}
         <div className="flex items-center gap-3 shrink-0">
-          <AppIcon className="w-8 h-8 shrink-0" />
-          <span className="text-base font-bold tracking-tight text-[#130f2b] dark:text-white whitespace-nowrap">
-            VPN Config Checker
-          </span>
+          <AppIcon className="w-7 h-7 shrink-0" />
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold tracking-tight text-[#E8EEF6] whitespace-nowrap">
+              VPN Config Checker
+            </span>
+            <span className="hidden sm:inline-flex items-center text-[11px] font-mono font-medium text-[#22D3EE] bg-[#22D3EE]/10 px-2 py-0.5 rounded border border-[#22D3EE]/25 whitespace-nowrap">
+              AI Studio Deep Verifier
+            </span>
+          </div>
         </div>
 
-        {/* Zone 2: Navigation Tabs */}
-        <nav className="flex items-center gap-1 bg-[#ede9fe] dark:bg-[#1c163d] p-1 rounded-lg border border-[#d1c9f4] dark:border-[#34296e] text-xs sm:text-sm font-medium overflow-x-auto">
-          {navItems.map((item) => (
+        {/* Center: Segmented Controls for Paste / Load Configs and Online Feeds */}
+        <div className="flex items-center gap-2">
+          {/* Main workspace mode switcher */}
+          <div className="flex items-center bg-[#131D2B] p-1 rounded-lg border border-[#263548] text-xs">
             <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`px-3 py-1.5 rounded-md whitespace-nowrap shrink-0 transition-all flex items-center gap-1.5 ${
-                activeTab === item.id
-                  ? 'bg-white dark:bg-[#2dd4bf] text-[#130f2b] dark:text-[#0b081b] font-semibold shadow-xs'
-                  : 'text-[#4c447a] dark:text-[#c4bdeb] hover:text-[#130f2b] dark:hover:text-white'
+              onClick={() => {
+                setActiveTab('workspace');
+                setInputMode('paste');
+              }}
+              className={`px-3 py-1.5 rounded-md font-medium transition-all flex items-center gap-1.5 ${
+                activeTab === 'workspace' && inputMode === 'paste'
+                  ? 'bg-[#1B293A] text-[#E8EEF6] shadow-xs border border-[#263548]'
+                  : 'text-[#94A3B8] hover:text-[#E8EEF6] hover:bg-[#1B293A]/50'
               }`}
             >
-              {item.icon}
-              <span className="hidden sm:inline">{item.label}</span>
+              <FileText className="w-3.5 h-3.5 text-[#22D3EE]" />
+              <span className="whitespace-nowrap">Paste / Load Configs</span>
             </button>
-          ))}
-        </nav>
 
-        {/* Zone 3: Settings & .zip Export */}
-        <div className="flex items-center gap-2.5 shrink-0">
+            <button
+              onClick={() => {
+                setActiveTab('workspace');
+                setInputMode('discover');
+              }}
+              className={`px-3 py-1.5 rounded-md font-medium transition-all flex items-center gap-1.5 ${
+                activeTab === 'workspace' && inputMode === 'discover'
+                  ? 'bg-[#1B293A] text-[#E8EEF6] shadow-xs border border-[#263548]'
+                  : 'text-[#94A3B8] hover:text-[#E8EEF6] hover:bg-[#1B293A]/50'
+              }`}
+            >
+              <Globe className="w-3.5 h-3.5 text-[#67E8F9]" />
+              <span className="whitespace-nowrap">Online Feeds</span>
+            </button>
+          </div>
+
+          {/* Secondary views navigation */}
+          <div className="hidden lg:flex items-center gap-1 text-xs border-l border-[#263548] pl-2">
+            <button
+              onClick={() => setActiveTab('regions')}
+              title="Google AI Studio Supported Regions"
+              className={`px-2.5 py-1.5 rounded-md font-medium transition-colors flex items-center gap-1.5 ${
+                activeTab === 'regions'
+                  ? 'bg-[#1B293A] text-[#E8EEF6] border border-[#263548]'
+                  : 'text-[#94A3B8] hover:text-[#E8EEF6] hover:bg-[#131D2B]'
+              }`}
+            >
+              <MapPin className="w-3.5 h-3.5" />
+              <span>Regions</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('rust-code')}
+              title="View Rust source code files"
+              className={`px-2.5 py-1.5 rounded-md font-medium transition-colors flex items-center gap-1.5 ${
+                activeTab === 'rust-code'
+                  ? 'bg-[#1B293A] text-[#E8EEF6] border border-[#263548]'
+                  : 'text-[#94A3B8] hover:text-[#E8EEF6] hover:bg-[#131D2B]'
+              }`}
+            >
+              <Code2 className="w-3.5 h-3.5" />
+              <span>Rust Source</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('workflow')}
+              title="GitHub Actions Windows EXE CI/CD"
+              className={`px-2.5 py-1.5 rounded-md font-medium transition-colors flex items-center gap-1.5 ${
+                activeTab === 'workflow'
+                  ? 'bg-[#1B293A] text-[#E8EEF6] border border-[#263548]'
+                  : 'text-[#94A3B8] hover:text-[#E8EEF6] hover:bg-[#131D2B]'
+              }`}
+            >
+              <Github className="w-3.5 h-3.5" />
+              <span>CI/CD</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Right Side: Verify Queue Button & Settings Button */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Action button */}
+          {isTesting ? (
+            <button
+              onClick={onStopTests}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-[#FB7185] bg-[#FB7185]/15 hover:bg-[#FB7185]/25 border border-[#FB7185]/30 rounded-lg transition-all"
+            >
+              <Square className="w-3.5 h-3.5 fill-current" />
+              <span>Stop ({testProgress}%)</span>
+            </button>
+          ) : (
+            <button
+              onClick={onRunTests}
+              disabled={configCount === 0}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all shadow-xs ${
+                configCount === 0
+                  ? 'bg-[#1B293A] text-[#64748B] border border-[#263548] cursor-not-allowed'
+                  : 'bg-[#22D3EE] hover:bg-[#67E8F9] active:bg-[#06B6D4] text-[#090E17] shadow-sm'
+              }`}
+            >
+              <Play className="w-3.5 h-3.5 fill-current" />
+              <span>Verify Queue ({configCount})</span>
+            </button>
+          )}
+
+          {/* Settings button */}
           <button
             onClick={onOpenSettings}
-            title="Settings (Theme, Xray / sing-box Paths & Options)"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium text-[#4c447a] dark:text-[#c4bdeb] hover:text-[#130f2b] dark:hover:text-white bg-[#ede9fe] dark:bg-[#1c163d] hover:bg-[#ddd6fe] dark:hover:bg-[#282054] border border-[#d1c9f4] dark:border-[#34296e] rounded-lg transition-colors whitespace-nowrap shrink-0"
+            title="Application Settings & Core Binaries"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#94A3B8] hover:text-[#E8EEF6] bg-[#131D2B] hover:bg-[#1B293A] active:bg-[#182435] border border-[#263548] rounded-lg transition-colors whitespace-nowrap"
           >
-            <Settings className="w-4 h-4 text-sky-600 dark:text-sky-400" />
-            <span className="hidden md:inline">Settings</span>
+            <Settings className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Settings</span>
           </button>
 
+          {/* Download Rust .zip project button */}
           <button
             onClick={onDownloadZip}
             disabled={isExportingZip}
-            title="Download compilable Rust project (.zip)"
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs sm:text-sm font-bold text-[#0b081b] bg-[#2dd4bf] hover:bg-[#14b8a6] rounded-lg transition-colors whitespace-nowrap shrink-0 shadow-xs"
+            title="Download full Rust project with GitHub Actions (.zip)"
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-[#94A3B8] hover:text-[#E8EEF6] bg-[#131D2B] hover:bg-[#1B293A] border border-[#263548] rounded-lg transition-colors"
           >
-            <Download className="w-4 h-4" />
-            <span>{isExportingZip ? '...' : 'Download .zip'}</span>
+            <Download className="w-3.5 h-3.5" />
+            <span className="hidden md:inline font-mono text-[11px]">{isExportingZip ? '...' : '.zip'}</span>
           </button>
         </div>
       </div>

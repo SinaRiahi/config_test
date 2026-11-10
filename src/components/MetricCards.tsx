@@ -1,102 +1,104 @@
 import React from 'react';
-import { Layers, CheckCircle2, Ban, Cpu } from 'lucide-react';
+import { Layers, ShieldCheck, AlertTriangle, XCircle } from 'lucide-react';
 
 interface MetricCardsProps {
   totalCount: number;
   workingCount: number;
   regionBlockedCount: number;
-  apiBlockedCount: number;
-  onOpenSettings: () => void;
+  failedCount: number;
+  concurrency: number;
+  timeoutSec: number;
 }
 
 export const MetricCards: React.FC<MetricCardsProps> = ({
   totalCount,
   workingCount,
   regionBlockedCount,
-  apiBlockedCount,
-  onOpenSettings,
+  failedCount,
+  concurrency,
+  timeoutSec,
 }) => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-      <div className="bg-white dark:bg-[#130f2b] border border-[#d1c9f4] dark:border-[#34296e] rounded-xl px-4 py-3.5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-[#ede9fe] dark:bg-[#1c163d] flex items-center justify-center text-sky-600 dark:text-sky-400">
-            <Layers className="w-4 h-4" />
-          </div>
-          <div>
-            <div className="text-xs font-semibold text-sky-600 dark:text-sky-400">
-              Configs in Queue
-            </div>
-            <div className="text-xs font-mono text-[#4c447a] dark:text-[#c4bdeb] mt-0.5">
-              VLESS · HY2 · TUIC · SS
-            </div>
+      {/* 1. Configs in Queue */}
+      <div className="bg-[#131D2B] border border-[#263548] rounded-xl p-4.5 flex flex-col justify-between transition-colors hover:border-[#22D3EE]/30">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-medium text-[#94A3B8]">
+            Configs in Queue
+          </span>
+          <div className="w-7 h-7 rounded-md bg-[#22D3EE]/10 flex items-center justify-center text-[#22D3EE]">
+            <Layers className="w-3.5 h-3.5" />
           </div>
         </div>
-        <div className="text-2xl font-bold font-mono tabular-nums text-[#130f2b] dark:text-white">
-          {totalCount}
-        </div>
-      </div>
-
-      <div className="bg-white dark:bg-[#130f2b] border border-[#d1c9f4] dark:border-[#34296e] rounded-xl px-4 py-3.5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-teal-950/50 flex items-center justify-center text-teal-600 dark:text-[#2dd4bf]">
-            <CheckCircle2 className="w-4 h-4" />
+        <div className="mt-2.5">
+          <div className="text-2xl sm:text-3xl font-bold font-mono text-[#E8EEF6] tabular-nums tracking-tight">
+            {totalCount}
           </div>
-          <div>
-            <div className="text-xs font-semibold text-teal-600 dark:text-[#2dd4bf]">
-              AI Studio Verified
-            </div>
-            <div className="text-xs font-mono text-[#4c447a] dark:text-[#c4bdeb] mt-0.5">
-              No Docs Redirect · Gate OK
-            </div>
+          <div className="text-xs text-[#64748B] font-mono mt-1 truncate">
+            {concurrency} threads · {timeoutSec}s timeout
           </div>
-        </div>
-        <div className="text-2xl font-bold font-mono tabular-nums text-teal-600 dark:text-[#2dd4bf]">
-          {workingCount}
         </div>
       </div>
 
-      <div className="bg-white dark:bg-[#130f2b] border border-[#d1c9f4] dark:border-[#34296e] rounded-xl px-4 py-3.5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-rose-50 dark:bg-rose-950/40 flex items-center justify-center text-rose-600 dark:text-rose-400">
-            <Ban className="w-4 h-4" />
-          </div>
-          <div>
-            <div className="text-xs font-semibold text-rose-600 dark:text-rose-400">
-              Docs / Region Blocked
-            </div>
-            <div className="text-xs font-mono text-[#4c447a] dark:text-[#c4bdeb] tabular-nums mt-0.5">
-              {regionBlockedCount} Redirect/Geo · {apiBlockedCount} API
-            </div>
+      {/* 2. AI Studio Verified */}
+      <div className="bg-[#131D2B] border border-[#263548] rounded-xl p-4.5 flex flex-col justify-between transition-colors hover:border-[#34D399]/40">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-medium text-[#94A3B8]">
+            AI Studio Verified
+          </span>
+          <div className="w-7 h-7 rounded-md bg-[#34D399]/10 flex items-center justify-center text-[#34D399]">
+            <ShieldCheck className="w-3.5 h-3.5" />
           </div>
         </div>
-        <div className="text-2xl font-bold font-mono tabular-nums text-rose-600 dark:text-rose-400">
-          {regionBlockedCount + apiBlockedCount}
+        <div className="mt-2.5">
+          <div className="text-2xl sm:text-3xl font-bold font-mono text-[#34D399] tabular-nums tracking-tight">
+            {workingCount}
+          </div>
+          <div className="text-xs text-[#64748B] mt-1 truncate">
+            No Docs Redirect &amp; GeoIP OK
+          </div>
         </div>
       </div>
 
-      <button
-        onClick={onOpenSettings}
-        title="Configure Xray & sing-box paths"
-        className="bg-white dark:bg-[#130f2b] border border-[#d1c9f4] dark:border-[#34296e] hover:border-violet-400 dark:hover:border-sky-400 rounded-xl px-4 py-3.5 flex items-center justify-between text-left transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-[#ede9fe] dark:bg-[#1c163d] flex items-center justify-center text-violet-600 dark:text-violet-400">
-            <Cpu className="w-4 h-4" />
-          </div>
-          <div>
-            <div className="text-xs font-semibold text-violet-600 dark:text-violet-400">
-              Portable Cores
-            </div>
-            <div className="text-xs font-mono text-[#130f2b] dark:text-white mt-0.5">
-              ./cores/xray · sing-box
-            </div>
+      {/* 3. Docs / Region Blocked */}
+      <div className="bg-[#131D2B] border border-[#263548] rounded-xl p-4.5 flex flex-col justify-between transition-colors hover:border-[#FBBF24]/40">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-medium text-[#94A3B8]">
+            Docs / Region Blocked
+          </span>
+          <div className="w-7 h-7 rounded-md bg-[#FBBF24]/10 flex items-center justify-center text-[#FBBF24]">
+            <AlertTriangle className="w-3.5 h-3.5" />
           </div>
         </div>
-        <span className="text-xs font-mono font-semibold text-teal-600 dark:text-[#2dd4bf]">
-          Configure →
-        </span>
-      </button>
+        <div className="mt-2.5">
+          <div className="text-2xl sm:text-3xl font-bold font-mono text-[#FBBF24] tabular-nums tracking-tight">
+            {regionBlockedCount}
+          </div>
+          <div className="text-xs text-[#64748B] mt-1 truncate">
+            Redirected to available-regions
+          </div>
+        </div>
+      </div>
+
+      {/* 4. Failed / Unreachable */}
+      <div className="bg-[#131D2B] border border-[#263548] rounded-xl p-4.5 flex flex-col justify-between transition-colors hover:border-[#FB7185]/40">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-medium text-[#94A3B8]">
+            Failed / Unreachable
+          </span>
+          <div className="w-7 h-7 rounded-md bg-[#FB7185]/10 flex items-center justify-center text-[#FB7185]">
+            <XCircle className="w-3.5 h-3.5" />
+          </div>
+        </div>
+        <div className="mt-2.5">
+          <div className="text-2xl sm:text-3xl font-bold font-mono text-[#FB7185] tabular-nums tracking-tight">
+            {failedCount}
+          </div>
+          <div className="text-xs text-[#64748B] mt-1 truncate">
+            Dead proxy or handshake timeout
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
